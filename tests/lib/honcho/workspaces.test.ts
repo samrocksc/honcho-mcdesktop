@@ -12,7 +12,7 @@ const mockPost = vi.mocked(honchoPost)
 const mockGet = vi.mocked(honchoGet)
 
 const workspace: Workspace = {
-  id: 'ws-1', name: 'test', metadata: {}, created_at: '2026-01-01T00:00:00Z',
+  id: 'ws-1', metadata: {}, created_at: '2026-01-01T00:00:00Z',
 }
 
 describe('listWorkspaces', () => {

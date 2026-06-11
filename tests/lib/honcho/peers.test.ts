@@ -37,11 +37,21 @@ describe('getPeer', () => {
 describe('getPeerRepresentation', () => {
   beforeEach(() => mockPost.mockReset())
   it('calls POST /v3/workspaces/{id}/peers/{peerId}/representation', async () => {
-    const rep: RepresentationResponse = { content: 'This peer likes brevity.' }
+    const rep: RepresentationResponse = { representation: 'This peer likes brevity.' }
     mockPost.mockResolvedValueOnce(rep)
     const result = await getPeerRepresentation('ws-1', 'peer-1')
     expect(mockPost).toHaveBeenCalledWith('/v3/workspaces/ws-1/peers/peer-1/representation', {})
-    expect(result.content).toBe('This peer likes brevity.')
+    expect(result.representation).toBe('This peer likes brevity.')
+  })
+})
+
+describe('getPeerContext', () => {
+  beforeEach(() => mockGet.mockReset())
+  it('calls GET /v3/workspaces/{id}/peers/{peerId}/context', async () => {
+    const ctx = { peer_id: 'peer-1', target_id: 'peer-1', representation: 'Some rep', peer_card: null }
+    mockGet.mockResolvedValueOnce(ctx)
+    await getPeerContext('ws-1', 'peer-1')
+    expect(mockGet).toHaveBeenCalledWith('/v3/workspaces/ws-1/peers/peer-1/context')
   })
 })
 
