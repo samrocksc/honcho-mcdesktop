@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import * as clientModule from '@/lib/honcho/client'
 
-// We test the client module by mocking global fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Must import after stubbing
-const { honchoGet, honchoPost, honchoPostStream } = await import('@/lib/honcho/client')
+const { honchoGet, honchoPost, honchoPostStream } = clientModule
 
 describe('honchoGet', () => {
   beforeEach(() => {
