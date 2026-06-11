@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { honchoPost, honchoGet, honchoPostStream } from '@/lib/honcho/client'
-import { listPeers, getPeer, getPeerRepresentation, getPeerContext, chatPeer } from '@/lib/honcho/peers'
+import { listPeers, getPeer, getPeerRepresentation, getPeerContext, chatPeer, listPeerSessions } from '@/lib/honcho/peers'
 import type { Page, Peer, RepresentationResponse } from '@/lib/honcho/types'
 
 vi.mock('@/lib/honcho/client', () => ({
@@ -66,5 +66,17 @@ describe('chatPeer', () => {
       { query: 'What do you know?' }
     )
     expect(result).toBe(fakeResponse)
+  })
+})
+
+describe('listPeerSessions', () => {
+  beforeEach(() => mockPost.mockReset())
+  it('calls POST /v3/workspaces/{id}/peers/{peerId}/sessions', async () => {
+    mockPost.mockResolvedValueOnce({ items: [], total: 0, page: 1, size: 50, pages: 0 })
+    await listPeerSessions('ws-1', 'peer-1')
+    expect(mockPost).toHaveBeenCalledWith(
+      '/v3/workspaces/ws-1/peers/peer-1/sessions',
+      { page: 1, size: 50, reverse: false }
+    )
   })
 })

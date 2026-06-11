@@ -1,5 +1,5 @@
 import { honchoGet, honchoPost, honchoPostStream } from './client'
-import type { Page, Peer, PeerContext, RepresentationResponse } from './types'
+import type { Page, Peer, PeerContext, RepresentationResponse, Session } from './types'
 
 interface ListParams {
   readonly page?: number
@@ -24,3 +24,10 @@ export const getPeerContext = (workspaceId: string, peerId: string): Promise<Pee
 
 export const chatPeer = (workspaceId: string, peerId: string, query: string): Promise<Response> =>
   honchoPostStream(`/v3/workspaces/${workspaceId}/peers/${peerId}/chat`, { query })
+
+export const listPeerSessions = (workspaceId: string, peerId: string, params: ListParams = {}): Promise<Page<Session>> =>
+  honchoPost(`/v3/workspaces/${workspaceId}/peers/${peerId}/sessions`, {
+    page: params.page ?? 1,
+    size: params.size ?? 50,
+    reverse: false,
+  })
