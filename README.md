@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Honcho Helpdesk
 
-## Getting Started
+A read-only dashboard for inspecting a self-hosted [Honcho](https://github.com/plastic-labs/honcho) instance. Browse workspaces, peers, sessions, messages, and conclusions — and query peer knowledge via chat or workspace search.
 
-First, run the development server:
+## Requirements
+
+- Node.js 18+
+- A running Honcho instance (self-hosted or remote)
+
+## Setup
+
+```bash
+npm install
+cp .env.example .env.local
+```
+
+Edit `.env.local`:
+
+```env
+HONCHO_BASE_URL=http://192.168.50.135:8000   # URL of your Honcho instance
+HONCHO_API_KEY=                               # Optional — leave blank for unauthenticated instances
+```
+
+## Running
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## What you can do
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Page | What it shows |
+|---|---|
+| `/` | All workspaces as clickable cards |
+| `/workspaces/[id]` | Tabs: Peers · Sessions · Conclusions · Ask |
+| `/workspaces/[id]/peers/[peerId]` | Peer representation, context, and sessions (responsive split) |
+| `/workspaces/[id]/sessions/[sessionId]` | Full message thread |
 
-## Learn More
+### Ask tab
 
-To learn more about Next.js, take a look at the following resources:
+Inside any workspace, the **Ask** tab lets you query Honcho's knowledge:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Peer Chat** — select a peer and ask a question; the answer streams back from Honcho's agentic search over that peer's representation
+- **Workspace Search** — semantic search across all messages in the workspace
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture
 
-## Deploy on Vercel
+Three-tier — each layer has one job:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+Presentation   app/page.tsx, app/workspaces/**/page.tsx
+               Server components call the data layer directly.
+               Client components (WorkspaceTabs, AskPanel) call API routes.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Business       app/api/workspaces/**/route.ts
+               Route handlers — proxy and orchestrate data layer calls.
+               Consumed by client-side components only.
+
+Data           lib/honcho/
+               Typed HTTP client + one module per resource.
+               Only layer that reads env vars or knows the Honcho URL.
+```
+
+## Regenerating types
+
+Types are generated from the live Honcho OpenAPI spec:
+
+```bash
+npm run generate-types
+```
+
+Requires the server at `HONCHO_BASE_URL` to be reachable.
+
+## Tests
+
+```bash
+npm test           # unit tests (Vitest)
+npm run test:e2e   # browser smoke tests (Playwright, requires dev server)
+```
