@@ -26,7 +26,7 @@ export const chatPeer = (workspaceId: string, peerId: string, query: string): Pr
   honchoPostStream(`/v3/workspaces/${workspaceId}/peers/${peerId}/chat`, { query })
 
 export const listPeerSessions = (workspaceId: string, peerId: string, params: ListParams = {}): Promise<Page<Session>> =>
-  honchoPost(`/v3/workspaces/${workspaceId}/peers/${peerId}/sessions`, {
+  honchoPost(`/v3/workspaces/${workspaceId}/peers/${peerId}/sessions/list`, {
     page: params.page ?? 1,
     size: params.size ?? 50,
     reverse: false,

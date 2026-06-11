@@ -87,17 +87,22 @@ function ConclusionPanel({ conclusions, workspaceId }: { readonly conclusions: r
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<readonly Conclusion[] | null>(null)
   const [loading, setLoading] = useState(false)
+  const [searchError, setSearchError] = useState('')
 
   const handleSearch = async () => {
     if (!query.trim()) return
     setLoading(true)
+    setSearchError('')
     try {
       const res = await fetch(`/api/workspaces/${workspaceId}/conclusions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),
       })
+      if (!res.ok) throw new Error(`Search failed: ${res.status}`)
       setResults(await res.json() as readonly Conclusion[])
+    } catch (e) {
+      setSearchError(String(e))
     } finally {
       setLoading(false)
     }
@@ -124,6 +129,7 @@ function ConclusionPanel({ conclusions, workspaceId }: { readonly conclusions: r
           </button>
         )}
       </div>
+      {searchError && <div className="alert alert-error text-sm"><span>{searchError}</span></div>}
       {displayed.length === 0
         ? <p className="text-base-content/50 text-sm">No conclusions found.</p>
         : (
