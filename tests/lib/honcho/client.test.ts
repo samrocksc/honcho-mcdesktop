@@ -5,7 +5,7 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 // Must import after stubbing
-const { honchoGet, honchoPost } = await import('@/lib/honcho/client')
+const { honchoGet, honchoPost, honchoPostStream } = await import('@/lib/honcho/client')
 
 describe('honchoGet', () => {
   beforeEach(() => {
@@ -56,5 +56,29 @@ describe('honchoPost', () => {
     const [, opts] = mockFetch.mock.calls[0]
     expect(opts.method).toBe('POST')
     expect(JSON.parse(opts.body)).toEqual({ page: 1, size: 50 })
+  })
+})
+
+describe('honchoPostStream', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    vi.stubEnv('HONCHO_BASE_URL', 'http://test-host:8000')
+    vi.stubEnv('HONCHO_API_KEY', '')
+  })
+
+  it('returns raw Response on success without consuming body', async () => {
+    const fakeBody = {} as ReadableStream
+    const fakeResponse = { ok: true, status: 200, body: fakeBody } as unknown as Response
+    mockFetch.mockResolvedValueOnce(fakeResponse)
+    const result = await honchoPostStream('/v3/workspaces/ws-1/peers/p-1/chat', { query: 'hello' })
+    expect(result).toBe(fakeResponse)
+    expect(result.body).toBe(fakeBody)
+  })
+
+  it('throws on non-ok response', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 422, text: async () => 'Unprocessable' })
+    await expect(
+      honchoPostStream('/v3/workspaces/ws-1/peers/p-1/chat', { query: 'hello' })
+    ).rejects.toThrow('Honcho 422')
   })
 })

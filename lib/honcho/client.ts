@@ -27,9 +27,15 @@ export const honchoPost = <T>(path: string, body: unknown): Promise<T> =>
     body: JSON.stringify(body),
   }).then(handleResponse<T>)
 
-export const honchoPostStream = (path: string, body: unknown): Promise<Response> =>
-  fetch(`${baseUrl()}${path}`, {
+export const honchoPostStream = async (path: string, body: unknown): Promise<Response> => {
+  const res = await fetch(`${baseUrl()}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Honcho ${res.status}: ${text}`)
+  }
+  return res
+}
