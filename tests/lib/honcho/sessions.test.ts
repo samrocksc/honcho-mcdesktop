@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { honchoPost, honchoGet } from '@/lib/honcho/client'
 import { listSessions, getSession, listMessages } from '@/lib/honcho/sessions'
-import type { Page, Session, Message } from '@/lib/honcho/types'
+import type { Session, Message } from '@/lib/honcho/types'
 
 vi.mock('@/lib/honcho/client', () => ({
   honchoPost: vi.fn(),
@@ -11,7 +11,7 @@ vi.mock('@/lib/honcho/client', () => ({
 const mockPost = vi.mocked(honchoPost)
 const mockGet = vi.mocked(honchoGet)
 
-const session: Session = { id: 'sess-1', workspace_id: 'ws-1', created_at: '2026-01-01T00:00:00Z' }
+const session: Session = { id: 'sess-1', is_active: true, workspace_id: 'ws-1', created_at: '2026-01-01T00:00:00Z' }
 const message: Message = {
   id: 'msg-1', content: 'Hello', peer_id: 'peer-1', session_id: 'sess-1',
   workspace_id: 'ws-1', created_at: '2026-01-01T00:00:00Z', token_count: 5,
