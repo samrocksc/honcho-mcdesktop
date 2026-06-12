@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
-import DocsPanel from "@/components/DocsPanel";
+import DocsPanel, { type DocPanelTab } from "@/components/DocsPanel";
 
 export default function LayoutShell({ children }: { readonly children: React.ReactNode }) {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<DocPanelTab>("docs");
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -31,7 +32,12 @@ export default function LayoutShell({ children }: { readonly children: React.Rea
             {children}
           </div>
         </div>
-        <DocsPanel isOpen={isPanelOpen} onCloseAction={() => setIsPanelOpen(false)} />
+        <DocsPanel
+          isOpen={isPanelOpen}
+          activeTab={activeTab}
+          onTabChangeAction={setActiveTab}
+          onCloseAction={() => setIsPanelOpen(false)}
+        />
       </div>
     </div>
   );

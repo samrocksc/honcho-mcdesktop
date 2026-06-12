@@ -1,21 +1,21 @@
 "use client";
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { getDoc } from "@/lib/docs";
 
-type Tab = "docs"
+export type DocPanelTab = "docs"
 
-const TABS: readonly { readonly id: Tab; readonly label: string }[] = [
+const TABS: readonly { readonly id: DocPanelTab; readonly label: string }[] = [
   { id: "docs", label: "docs" },
 ];
 
 type Props = {
   readonly isOpen: boolean
+  readonly activeTab: DocPanelTab
+  readonly onTabChangeAction: (tab: DocPanelTab) => void
   readonly onCloseAction: () => void
 }
 
-export default function DocsPanel({ isOpen, onCloseAction }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>("docs");
+export default function DocsPanel({ isOpen, activeTab, onTabChangeAction, onCloseAction }: Props) {
   const pathname = usePathname();
   const doc = getDoc(pathname);
 
@@ -34,7 +34,7 @@ export default function DocsPanel({ isOpen, onCloseAction }: Props) {
         {TABS.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => onTabChangeAction(tab.id)}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id
                 ? "text-base-content border-b-2 border-neutral"

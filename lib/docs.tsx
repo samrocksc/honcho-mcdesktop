@@ -1,5 +1,3 @@
-import React from "react";
-
 export type DocEntry = {
   readonly title: string
   readonly content: React.ReactNode
