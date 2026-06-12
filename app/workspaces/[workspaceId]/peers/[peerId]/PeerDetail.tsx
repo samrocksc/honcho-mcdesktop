@@ -1,7 +1,7 @@
-import Link from 'next/link'
-import type { Peer, RepresentationResponse, PeerContext, Session } from '@/lib/honcho/types'
+import Link from "next/link";
+import type { Peer, RepresentationResponse, PeerContext, Session } from "@/lib/honcho/types";
 
-interface Props {
+type Props = {
   readonly peer: Peer | null
   readonly representation: RepresentationResponse | null
   readonly context: PeerContext | null
@@ -11,11 +11,23 @@ interface Props {
 
 export default function PeerDetail({ peer, representation, context, sessions, workspaceId }: Props) {
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      <LeftPanel peer={peer} representation={representation} context={context} />
-      <RightPanel sessions={sessions} workspaceId={workspaceId} />
+    <div className="space-y-4">
+      {peer && (
+        <div className="flex justify-end">
+          <Link
+            href={`/workspaces/${workspaceId}/import?observed_id=${encodeURIComponent(peer.id)}`}
+            className="btn btn-sm btn-outline"
+          >
+            Re-import →
+          </Link>
+        </div>
+      )}
+      <div className="flex flex-col lg:flex-row gap-6">
+        <LeftPanel peer={peer} representation={representation} context={context} />
+        <RightPanel sessions={sessions} workspaceId={workspaceId} />
+      </div>
     </div>
-  )
+  );
 }
 
 function LeftPanel({ peer, representation, context }: {
@@ -65,7 +77,7 @@ function LeftPanel({ peer, representation, context }: {
         <p className="text-base-content/50 text-sm">No peer data available.</p>
       )}
     </div>
-  )
+  );
 }
 
 function RightPanel({ sessions, workspaceId }: { readonly sessions: readonly Session[]; readonly workspaceId: string }) {
@@ -95,5 +107,5 @@ function RightPanel({ sessions, workspaceId }: { readonly sessions: readonly Ses
         )
       }
     </div>
-  )
+  );
 }

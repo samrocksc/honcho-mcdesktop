@@ -1,23 +1,17 @@
-import Link from 'next/link'
-import { listMessages } from '@/lib/honcho/sessions'
-import type { Message } from '@/lib/honcho/types'
+import Link from "next/link";
+import { listMessages } from "@/lib/honcho/sessions";
+import type { Message } from "@/lib/honcho/types";
 
-interface Props {
+type Props = {
   readonly params: Promise<{ workspaceId: string; sessionId: string }>
 }
 
 export default async function SessionDetailPage({ params }: Props) {
-  const { workspaceId, sessionId } = await params
+  const { workspaceId, sessionId } = await params;
 
-  let messages: readonly Message[] = []
-  let error: string | null = null
-
-  try {
-    const page = await listMessages(workspaceId, sessionId)
-    messages = page.items
-  } catch (e) {
-    error = String(e)
-  }
+  const { messages, error } = await listMessages(workspaceId, sessionId)
+    .then((page) => ({ messages: page.items as readonly Message[], error: null as string | null }))
+    .catch((e: unknown) => ({ messages: [] as readonly Message[], error: String(e) as string | null }));
 
   return (
     <div>
@@ -31,18 +25,18 @@ export default async function SessionDetailPage({ params }: Props) {
       {error && <div className="alert alert-error mb-4"><span>{error}</span></div>}
       <MessageThread messages={messages} />
     </div>
-  )
+  );
 }
 
 function MessageThread({ messages }: { readonly messages: readonly Message[] }) {
   if (messages.length === 0) {
-    return <p className="text-base-content/50 text-sm">No messages in this session.</p>
+    return <p className="text-base-content/50 text-sm">No messages in this session.</p>;
   }
   return (
     <div className="space-y-3">
       {messages.map((msg) => <MessageCard key={msg.id} message={msg} />)}
     </div>
-  )
+  );
 }
 
 function MessageCard({ message }: { readonly message: Message }) {
@@ -61,5 +55,5 @@ function MessageCard({ message }: { readonly message: Message }) {
         )}
       </div>
     </div>
-  )
+  );
 }

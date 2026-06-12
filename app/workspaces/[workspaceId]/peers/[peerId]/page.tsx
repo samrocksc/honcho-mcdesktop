@@ -1,26 +1,26 @@
-import Link from 'next/link'
-import { getPeer, getPeerRepresentation, getPeerContext, listPeerSessions } from '@/lib/honcho/peers'
-import type { Peer, RepresentationResponse, PeerContext, Session } from '@/lib/honcho/types'
-import PeerDetail from './PeerDetail'
+import Link from "next/link";
+import { getPeer, getPeerRepresentation, getPeerContext, listPeerSessions } from "@/lib/honcho/peers";
+import type { Peer, RepresentationResponse, PeerContext, Session } from "@/lib/honcho/types";
+import PeerDetail from "./PeerDetail";
 
-interface Props {
+type Props = {
   readonly params: Promise<{ workspaceId: string; peerId: string }>
 }
 
 export default async function PeerDetailPage({ params }: Props) {
-  const { workspaceId, peerId } = await params
+  const { workspaceId, peerId } = await params;
 
   const [peerResult, repResult, contextResult, sessionsResult] = await Promise.allSettled([
     getPeer(workspaceId, peerId),
     getPeerRepresentation(workspaceId, peerId),
     getPeerContext(workspaceId, peerId),
     listPeerSessions(workspaceId, peerId),
-  ])
+  ]);
 
-  const peer: Peer | null = peerResult.status === 'fulfilled' ? peerResult.value : null
-  const representation: RepresentationResponse | null = repResult.status === 'fulfilled' ? repResult.value : null
-  const context: PeerContext | null = contextResult.status === 'fulfilled' ? contextResult.value : null
-  const sessions: readonly Session[] = sessionsResult.status === 'fulfilled' ? sessionsResult.value.items : []
+  const peer: Peer | null = peerResult.status === "fulfilled" ? peerResult.value : null;
+  const representation: RepresentationResponse | null = repResult.status === "fulfilled" ? repResult.value : null;
+  const context: PeerContext | null = contextResult.status === "fulfilled" ? contextResult.value : null;
+  const sessions: readonly Session[] = sessionsResult.status === "fulfilled" ? sessionsResult.value.items : [];
 
   return (
     <div>
@@ -37,5 +37,5 @@ export default async function PeerDetailPage({ params }: Props) {
         workspaceId={workspaceId}
       />
     </div>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import { honchoPost } from "./client";
+import { honchoPost, honchoDelete } from "./client";
 import type { Conclusion, Page } from "./types";
 
 type ListParams = {
@@ -55,3 +55,6 @@ export const createConclusions = (
   conclusions: readonly ConclusionCreateItem[],
 ): Promise<readonly Conclusion[]> =>
   honchoPost(`/v3/workspaces/${workspaceId}/conclusions`, { conclusions });
+
+export const deleteConclusion = (workspaceId: string, conclusionId: string): Promise<void> =>
+  honchoDelete(`/v3/workspaces/${workspaceId}/conclusions/${conclusionId}`);

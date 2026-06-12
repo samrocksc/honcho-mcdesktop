@@ -6,6 +6,7 @@ import { DEFAULT_GUIDANCE } from "@/lib/honcho/import";
 type Props = {
   readonly workspaceId: string
   readonly peers: readonly Peer[]
+  readonly initialObservedId?: string
 }
 
 type CardState = "queued" | "writing" | "confirmed" | "error"
@@ -28,9 +29,9 @@ function inferDate(filename: string): string | null {
   return match ? match[1] : null;
 }
 
-export default function ImportPanel({ workspaceId, peers }: Props) {
+export default function ImportPanel({ workspaceId, peers, initialObservedId }: Props) {
   const [observerId, setObserverId] = useState(peers[0]?.id ?? "");
-  const [observedId, setObservedId] = useState(peers[0]?.id ?? "");
+  const [observedId, setObservedId] = useState(initialObservedId ?? peers[0]?.id ?? "");
   const [guidance, setGuidance] = useState(DEFAULT_GUIDANCE);
   const [files, setFiles] = useState<ImportFile[]>([]);
   const [cards, setCards] = useState<ConclusionCard[]>([]);

@@ -5,10 +5,12 @@ import ImportPanel from "./ImportPanel";
 
 type Props = {
   readonly params: Promise<{ workspaceId: string }>
+  readonly searchParams: Promise<{ observed_id?: string }>
 }
 
-export default async function ImportPage({ params }: Props) {
+export default async function ImportPage({ params, searchParams }: Props) {
   const { workspaceId } = await params;
+  const { observed_id } = await searchParams;
 
   let peers: readonly Peer[] = [];
   try {
@@ -23,7 +25,7 @@ export default async function ImportPage({ params }: Props) {
         <h1 className="text-xl font-bold font-mono truncate">{workspaceId}</h1>
         <span className="badge badge-neutral">Import</span>
       </div>
-      <ImportPanel workspaceId={workspaceId} peers={peers} />
+      <ImportPanel workspaceId={workspaceId} peers={peers} initialObservedId={observed_id} />
     </div>
   );
 }
