@@ -47,7 +47,8 @@ export default function ImportPanel({ workspaceId, peers }: Props) {
     if (!raw) return;
     const mdFiles = Array.from(raw).filter((f) => f.name.endsWith(".md"));
     Promise.all(mdFiles.map((f) => f.text().then((content) => ({ name: f.name, content }))))
-      .then(setFiles);
+      .then(setFiles)
+      .catch(() => {});
   };
 
   const handleImport = async () => {
@@ -286,7 +287,7 @@ function ConclusionCard({ card }: { readonly card: ConclusionCard }) {
   };
 
   return (
-    <div className={`rounded-lg px-4 py-3 transition-all duration-400 ${stateStyles[card.state]}`}>
+    <div className={`rounded-lg px-4 py-3 transition-all duration-300 ${stateStyles[card.state]}`}>
       <p className="text-sm">{card.content}</p>
       <div className="flex items-center gap-2 mt-1">
         {card.state === "writing" && (
