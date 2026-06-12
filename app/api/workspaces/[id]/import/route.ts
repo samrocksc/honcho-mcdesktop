@@ -3,6 +3,8 @@ import { askPeer } from "@/lib/honcho/peers";
 import { createConclusions } from "@/lib/honcho/conclusions";
 import { stripMarkdown, chunkByHeading, buildExtractionPrompt, parseConclusions } from "@/lib/honcho/import";
 
+export const maxDuration = 300;
+
 type ImportFile = {
   readonly name: string
   readonly content: string
@@ -48,7 +50,12 @@ export async function POST(
 
           for (const chunk of chunks) {
             const prompt = buildExtractionPrompt(chunk, guidance);
-            const response = await askPeer(id, observer_id, { query: prompt, reasoning_level: "low" });
+            const response = await Promise.race([
+              askPeer(id, observer_id, { query: prompt, reasoning_level: "low" }),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("askPeer timeout")), 30_000)
+              ),
+            ]);
             const parsed = parseConclusions(response.content ?? "");
             allConclusions.push(...parsed);
           }

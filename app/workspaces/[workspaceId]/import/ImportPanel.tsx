@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import type { Peer } from "@/lib/honcho/types";
+import { DEFAULT_GUIDANCE } from "@/lib/honcho/import";
 
 type Props = {
   readonly workspaceId: string
@@ -21,10 +22,6 @@ type ImportFile = {
   readonly name: string
   readonly content: string
 }
-
-const DEFAULT_GUIDANCE =
-  "Extract atomic, persistent conclusions about engineering preferences, active projects, " +
-  "tooling decisions, and recurring patterns. Ignore meeting logistics, tasks, and one-off notes.";
 
 function inferDate(filename: string): string | null {
   const match = filename.match(/(\d{4}-\d{2}-\d{2})/);
@@ -48,7 +45,7 @@ export default function ImportPanel({ workspaceId, peers }: Props) {
     const mdFiles = Array.from(raw).filter((f) => f.name.endsWith(".md"));
     Promise.all(mdFiles.map((f) => f.text().then((content) => ({ name: f.name, content }))))
       .then(setFiles)
-      .catch(() => {});
+      .catch((err: unknown) => setError(String(err)));
   };
 
   const handleImport = async () => {
@@ -118,6 +115,11 @@ export default function ImportPanel({ workspaceId, peers }: Props) {
           } catch {}
         }
       }
+      setCards((prev) =>
+        prev.map((c) =>
+          c.state === "writing" ? { ...c, state: "error", error: "Stream ended unexpectedly" } : c,
+        ),
+      );
     } catch (err) {
       setError(String(err));
     } finally {

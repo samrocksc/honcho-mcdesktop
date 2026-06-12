@@ -35,7 +35,7 @@ export const chunkByHeading = (content: string, maxChars = MAX_CHARS): string[] 
   return chunks;
 };
 
-const DEFAULT_GUIDANCE =
+export const DEFAULT_GUIDANCE =
   "Extract atomic, persistent conclusions about engineering preferences, active projects, " +
   "tooling decisions, and recurring patterns. Ignore meeting logistics, tasks, and one-off notes.";
 
@@ -52,7 +52,7 @@ ${content}
 `.trim();
 
 export const parseConclusions = (raw: string): string[] => {
-  const match = raw.match(/\[[\s\S]*\]/);
+  const match = raw.match(/\[[\s\S]*?\]/);
   if (!match) return [];
   try {
     const parsed: unknown = JSON.parse(match[0]);
