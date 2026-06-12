@@ -11,10 +11,10 @@ const TABS: readonly { readonly id: Tab; readonly label: string }[] = [
 
 type Props = {
   readonly isOpen: boolean
-  readonly onClose: () => void
+  readonly onCloseAction: () => void
 }
 
-export default function DocsPanel({ isOpen, onClose }: Props) {
+export default function DocsPanel({ isOpen, onCloseAction }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("docs");
   const pathname = usePathname();
   const doc = getDoc(pathname);
@@ -46,7 +46,7 @@ export default function DocsPanel({ isOpen, onClose }: Props) {
           </button>
         ))}
         <button
-          onClick={onClose}
+          onClick={onCloseAction}
           className="ml-auto px-3 py-2 text-base-content/40 hover:text-base-content/80 transition-colors text-sm"
           aria-label="Close docs panel"
         >
