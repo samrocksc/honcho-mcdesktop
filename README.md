@@ -1,6 +1,6 @@
 # Honcho Desktop
 
-A dashboard for inspecting and managing a self-hosted [Honcho](https://github.com/plastic-labs/honcho) instance. Browse workspaces, peers, sessions, messages, and conclusions — query peer knowledge via chat, search, import markdown notes, and monitor activity analytics.
+I built this because I wanted a proper dashboard for my self-hosted [Honcho](https://github.com/plastic-labs/honcho) instance. Honcho is a user context and memory server for AI applications, and the official tooling doesn't include a UI for browsing what it knows. This fills that gap: browse workspaces, peers, sessions, messages, and conclusions, query peer knowledge via chat, import markdown notes to hydrate the memory store, and monitor activity analytics.
 
 ## Requirements
 
@@ -41,114 +41,89 @@ Open [http://localhost:3000](http://localhost:3000).
 |---|---|
 | `/` | All workspaces as clickable cards |
 | `/workspaces` | Searchable, paginated workspace table |
-| `/workspaces/[id]` | Tabs: Peers · Sessions · Conclusions · Ask |
+| `/workspaces/[id]` | Tabs for Peers, Sessions, Conclusions, and Ask |
 | `/workspaces/[id]/peers/[peerId]` | Peer representation, context, and sessions |
 | `/workspaces/[id]/sessions/[sessionId]` | Full message thread |
 | `/workspaces/[id]/import` | Hydrate workspace from markdown files |
-| `/stats` | Activity charts (volume, freshness, coverage, heatmap) |
+| `/stats` | Activity charts for volume, freshness, coverage, and heatmap |
 | `/diagnose` | Inspect what Honcho knows about a peer |
 
 ## Features
 
 ### Ask tab
 
-Inside any workspace, the **Ask** tab lets you query Honcho's knowledge:
+Inside any workspace, the Ask tab lets you query Honcho's knowledge in two ways.
 
-- **Peer Chat** — select a peer and ask a question; the answer streams from Honcho's agentic search over that peer's representation
-- **Workspace Search** — semantic search across all messages in the workspace
+**Peer Chat** selects a peer and asks a question. The answer streams from Honcho's agentic search over that peer's representation.
+
+**Workspace Search** runs semantic search across all messages in the workspace.
 
 ### Workspace Hydration (Import)
 
-Upload markdown files (daily notes, knowledge docs, how-tos). The app uses Honcho's peer chat to extract structured conclusions and writes them directly into the workspace. Progress streams back in real time as conclusion cards.
+Upload markdown files such as daily notes, knowledge docs, or how-tos. The app uses Honcho's peer chat to extract structured conclusions and writes them directly into the workspace. Progress streams back in real time as conclusion cards.
 
 ### Stats
 
-Four analytics views built from your live Honcho data:
+Four analytics views built from your live Honcho data.
 
-- **Volume** — message and conclusion counts by day, per workspace
-- **Freshness** — how recently conclusions were written (fresh / recent / aging / stale)
-- **Coverage** — which peers have conclusions across which workspaces
-- **Heatmap** — peer message activity over time
+**Volume** shows message and conclusion counts by day, per workspace. **Freshness** shows how recently conclusions were written, bucketed into fresh, recent, aging, and stale. **Coverage** shows which peers have conclusions across which workspaces. **Heatmap** shows peer message activity over time.
 
 ### Diagnose
 
-Inspect exactly what context Honcho would return for a given observer/target pair — useful for debugging memory retrieval before deploying to production.
+Inspect exactly what context Honcho would return for a given observer and target pair. This is useful for debugging memory retrieval before deploying to production.
 
-## Architecture
+## How Honcho works
 
-Three-tier — each layer has one job:
+### Writing a conversation to memory
 
-```
-Presentation   app/page.tsx, app/workspaces/**/page.tsx
-               Server components call the data layer directly.
-               Client components (WorkspaceTabs, AskPanel, ImportPanel) call API routes.
-
-Business       app/api/workspaces/**/route.ts, app/api/stats/**/route.ts
-               Route handlers — proxy and orchestrate data layer calls.
-               Consumed by client-side components only.
-
-Data           lib/honcho/
-               Typed HTTP client + one module per resource.
-               Only layer that reads env vars or knows the Honcho URL.
-```
-
-## Sequence Diagrams
-
-### Page load (server component)
+Your AI app sends each exchange to Honcho as it happens. Honcho stores the raw messages and then processes them in the background to extract conclusions about the user and update their representation.
 
 ```mermaid
 sequenceDiagram
-    participant Browser
-    participant Next.js as Next.js Server
-    participant lib as lib/honcho/*
+    participant User
+    participant YourApp as Your AI App
     participant Honcho
+    participant LLM
 
-    Browser->>Next.js: GET /workspaces/[id]
-    Next.js->>lib: listPeers(id), listSessions(id)
-    lib->>Honcho: POST /v3/workspaces/{id}/peers/list
-    Honcho-->>lib: { items, total }
-    lib-->>Next.js: peers[]
-    Next.js-->>Browser: Rendered HTML
+    User->>YourApp: sends a message
+    YourApp->>Honcho: POST /sessions/{id}/messages (user + assistant turns)
+    Honcho->>LLM: infer facts from new messages
+    LLM-->>Honcho: conclusions (e.g. "prefers Python over JS")
+    Honcho->>Honcho: write conclusions, update peer representation
 ```
 
-### Peer Chat (streaming)
+### Retrieving context before a response
+
+Before your AI answers, it asks Honcho what it knows about this user. Honcho returns a representation built from past conversations so the response can be personalised without the AI seeing raw history.
 
 ```mermaid
 sequenceDiagram
-    participant Browser
-    participant API as /api/workspaces/[id]/peers/[peerId]/chat
-    participant lib as lib/honcho/peers
+    participant User
+    participant YourApp as Your AI App
     participant Honcho
+    participant LLM
 
-    Browser->>API: POST { query, reasoning_level }
-    API->>lib: askPeer(workspaceId, peerId, body)
-    lib->>Honcho: POST /v3/workspaces/{id}/peers/{peerId}/chat
-    Honcho-->>lib: SSE stream
-    lib-->>API: ReadableStream
-    API-->>Browser: SSE stream
-    Browser->>Browser: Render tokens as they arrive
+    User->>YourApp: asks a question
+    YourApp->>Honcho: GET /peers/{id}/context?query=...
+    Honcho->>Honcho: retrieve representation + relevant conclusions
+    Honcho-->>YourApp: context string
+    YourApp->>LLM: system prompt with Honcho context + user question
+    LLM-->>YourApp: personalised response
+    YourApp-->>User: reply
 ```
 
-### Workspace Hydration (import)
+### The memory accumulation loop
+
+Over many sessions, Honcho builds an increasingly complete picture of each peer. New messages are processed against existing conclusions so the representation stays current rather than growing unboundedly.
 
 ```mermaid
-sequenceDiagram
-    participant Browser
-    participant API as /api/workspaces/[id]/import
-    participant lib as lib/honcho/*
-    participant Honcho
-
-    Browser->>API: POST { files[], observer_id, observed_id, guidance }
-    loop each file → each chunk
-        API->>lib: askPeer(chunk prompt)
-        lib->>Honcho: POST peers/{id}/chat
-        Honcho-->>lib: extracted conclusions (JSON array)
-        API-->>Browser: NDJSON { type: "extracted", content }
-    end
-    API->>lib: createConclusions(batch)
-    lib->>Honcho: POST conclusions/list (bulk write)
-    API-->>Browser: NDJSON { type: "batch_confirmed" }
-    API-->>Browser: NDJSON { type: "done", total_conclusions }
+flowchart LR
+    A[User messages] --> B[Session stored in Honcho]
+    B --> C[LLM extracts conclusions]
+    C --> D[Conclusions written to peer]
+    D --> E[Peer representation updated]
+    E --> F[Context served to your AI]
+    F --> A
 ```
 
 ## Regenerating types
