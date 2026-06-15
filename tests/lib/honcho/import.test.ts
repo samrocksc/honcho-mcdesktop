@@ -58,12 +58,12 @@ describe("buildExtractionPrompt", () => {
 
 describe("parseConclusions", () => {
   it("parses a JSON array of strings", () => {
-    const raw = '["User prefers X.", "User avoids Y."]';
+    const raw = "[\"User prefers X.\", \"User avoids Y.\"]";
     expect(parseConclusions(raw)).toEqual(["User prefers X.", "User avoids Y."]);
   });
 
   it("extracts a JSON array embedded in prose", () => {
-    const raw = 'Here are the conclusions:\n["Conclusion A.", "Conclusion B."]\nDone.';
+    const raw = "Here are the conclusions:\n[\"Conclusion A.\", \"Conclusion B.\"]\nDone.";
     expect(parseConclusions(raw)).toEqual(["Conclusion A.", "Conclusion B."]);
   });
 
@@ -72,6 +72,6 @@ describe("parseConclusions", () => {
   });
 
   it("returns an empty array when JSON is an object, not an array", () => {
-    expect(parseConclusions('{"key": "value"}')).toEqual([]);
+    expect(parseConclusions("{\"key\": \"value\"}")).toEqual([]);
   });
 });

@@ -42,5 +42,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# superpowers
+# superpowers / internal tooling
 .superpowers/
+
+# internal planning docs
+docs/superpowers/
+tickets/
+
+# test artefacts
+test-results/
+.playwright-mcp/

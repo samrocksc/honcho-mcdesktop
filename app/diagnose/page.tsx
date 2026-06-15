@@ -196,7 +196,7 @@ export default function DiagnosePage() {
               checked={useDifferentTarget}
               onChange={(e) => setUseDifferentTarget(e.target.checked)}
             />
-            <span>Ask from the perspective of a different peer (target)</span>
+            <span>Ask about a different peer (set a target)</span>
           </label>
           {useDifferentTarget && (
             <label className="form-control w-full">
@@ -249,12 +249,13 @@ export default function DiagnosePage() {
             </label>
           </div>
 
-          <label className="form-control w-full">
-            <div className="label">
-              <span className="label-text font-medium">Question</span>
-            </div>
+          <div className="flex flex-col gap-1 w-full">
+            <label className="label text-sm font-medium text-base-content" htmlFor="diagnose-query">
+              Question
+            </label>
             <textarea
-              className="textarea textarea-bordered min-h-24"
+              id="diagnose-query"
+              className="textarea textarea-bordered min-h-24 w-full"
               placeholder="What is the user's preferred name and where are they based?"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -265,12 +266,8 @@ export default function DiagnosePage() {
                 }
               }}
             />
-            <div className="label">
-              <span className="label-text-alt text-base-content/40">
-                ⌘/Ctrl + Enter to submit
-              </span>
-            </div>
-          </label>
+            <span className="text-xs text-base-content/40">⌘/Ctrl + Enter to submit</span>
+          </div>
 
           <div className="card-actions justify-end">
             <button

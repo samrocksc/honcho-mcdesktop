@@ -11,28 +11,23 @@ export const stripMarkdown = (content: string): string =>
 
 const MAX_CHARS = 6000;
 
-export const chunkByHeading = (content: string, maxChars = MAX_CHARS): string[] => {
+export const chunkByHeading = (content: string, maxChars = MAX_CHARS): readonly string[] => {
   if (content.length <= maxChars) return [content];
   const sections = content.split(/(?=^# )/m).filter(Boolean);
   if (sections.length <= 1) {
-    const chunks: string[] = [];
-    for (let i = 0; i < content.length; i += maxChars) {
-      chunks.push(content.slice(i, i + maxChars));
-    }
-    return chunks;
+    return Array.from(
+      { length: Math.ceil(content.length / maxChars) },
+      (_, i) => content.slice(i * maxChars, (i + 1) * maxChars),
+    );
   }
-  const chunks: string[] = [];
-  let current = "";
-  for (const section of sections) {
-    if ((current + section).length > maxChars && current) {
-      chunks.push(current.trim());
-      current = section;
-    } else {
-      current += section;
-    }
-  }
-  if (current.trim()) chunks.push(current.trim());
-  return chunks;
+  const { chunks, current } = sections.reduce(
+    ({ chunks: acc, current: cur }, section) =>
+      (cur + section).length > maxChars && cur
+        ? { chunks: [...acc, cur.trim()], current: section }
+        : { chunks: acc, current: cur + section },
+    { chunks: [] as string[], current: "" },
+  );
+  return current.trim() ? [...chunks, current.trim()] : chunks;
 };
 
 export const DEFAULT_GUIDANCE =

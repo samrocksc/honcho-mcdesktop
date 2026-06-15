@@ -12,11 +12,9 @@ export default async function ImportPage({ params, searchParams }: Props) {
   const { workspaceId } = await params;
   const { observed_id } = await searchParams;
 
-  let peers: readonly Peer[] = [];
-  try {
-    const result = await listPeers(workspaceId);
-    peers = result.items;
-  } catch {}
+  const peers: readonly Peer[] = await listPeers(workspaceId)
+    .then((r) => r.items)
+    .catch((): readonly Peer[] => []);
 
   return (
     <div>

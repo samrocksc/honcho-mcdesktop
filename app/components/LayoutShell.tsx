@@ -7,7 +7,7 @@ export default function LayoutShell({ children }: { readonly children: React.Rea
   const [activeTab, setActiveTab] = useState<DocPanelTab>("docs");
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-screen">
       <nav className="navbar bg-base-100 shadow-sm px-4 flex-shrink-0">
         <a href="/" className="btn btn-ghost text-xl font-bold">
           Honcho Helpdesk
