@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Peer, RepresentationResponse, PeerContext, Session, Conclusion } from "@/lib/honcho/types";
 
 type Props = {
@@ -20,6 +21,14 @@ const FONT_MONO = "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, m
 
 export default function PeerDetail({ peer, representation, context, sessions, workspaceId, conclusions, peerId }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [diagnosisConclusion, setDiagnosisConclusion] = useState<Conclusion | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const router = useRouter();
+
+  const handleDeletePeer = async () => {
+    const res = await fetch(`/api/workspaces/${workspaceId}/peers/${peerId}`, { method: "DELETE" });
+    if (res.ok) router.push(`/workspaces/${workspaceId}`);
+  };
 
   const tabs: { id: Tab; label: ReactNode }[] = [
     { id: "overview", label: "Overview" },
@@ -38,7 +47,22 @@ export default function PeerDetail({ peer, representation, context, sessions, wo
   return (
     <div className="space-y-4">
       {peer && (
-        <div className="flex justify-end">
+        <div className="flex justify-end items-center gap-2 flex-wrap">
+          {confirmingDelete ? (
+            <>
+              <span className="text-sm text-base-content/70">Delete this peer?</span>
+              <button className="btn btn-xs btn-error" onClick={handleDeletePeer}>
+                Confirm delete
+              </button>
+              <button className="btn btn-xs btn-ghost" onClick={() => setConfirmingDelete(false)}>
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-xs btn-ghost text-error" onClick={() => setConfirmingDelete(true)}>
+              Delete peer
+            </button>
+          )}
           <Link
             href={`/workspaces/${workspaceId}/import?observed_id=${encodeURIComponent(peer.id)}`}
             className="btn btn-sm btn-outline"
@@ -61,21 +85,39 @@ export default function PeerDetail({ peer, representation, context, sessions, wo
         ))}
       </div>
 
-      {activeTab === "overview" && (
-        <OverviewTab
-          peer={peer}
-          representation={representation}
-          context={context}
-          sessions={sessions}
-          workspaceId={workspaceId}
-        />
-      )}
-      {activeTab === "inspect" && (
-        <InspectTab context={context} representation={representation} />
-      )}
-      {activeTab === "conclusions" && (
-        <ConclusionsTab conclusions={conclusions} workspaceId={workspaceId} peerId={peerId} />
-      )}
+      <div className="flex gap-0 relative">
+        <div className="flex-1 min-w-0 space-y-4">
+          {activeTab === "overview" && (
+            <OverviewTab
+              peer={peer}
+              representation={representation}
+              context={context}
+              sessions={sessions}
+              workspaceId={workspaceId}
+            />
+          )}
+          {activeTab === "inspect" && (
+            <InspectTab context={context} representation={representation} />
+          )}
+          {activeTab === "conclusions" && (
+            <ConclusionsTab
+              conclusions={conclusions}
+              workspaceId={workspaceId}
+              peerId={peerId}
+              selectedId={diagnosisConclusion?.id ?? null}
+              onSelect={setDiagnosisConclusion}
+            />
+          )}
+        </div>
+        {diagnosisConclusion && (
+          <DiagnosePanel
+            workspaceId={workspaceId}
+            peerId={peerId}
+            conclusion={diagnosisConclusion}
+            onClose={() => setDiagnosisConclusion(null)}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -346,6 +388,127 @@ function InspectTab({ context, representation }: {
   );
 }
 
+// ── Diagnose panel ────────────────────────────────────────────────────────────
+
+function DiagnosePanel({ workspaceId, peerId, conclusion, onClose }: {
+  readonly workspaceId: string
+  readonly peerId: string
+  readonly conclusion: Conclusion
+  readonly onClose: () => void
+}) {
+  const [query, setQuery] = useState(conclusion.content);
+  const [reasoningLevel, setReasoningLevel] = useState<"low" | "medium" | "high">("low");
+  const [response, setResponse] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setQuery(conclusion.content);
+    setResponse(null);
+    setError("");
+  }, [conclusion.id]);
+
+  const handleAsk = async () => {
+    if (!query.trim() || loading) return;
+    setLoading(true);
+    setResponse(null);
+    setError("");
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/peers/${peerId}/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, reasoning_level: reasoningLevel }),
+      });
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      const data = await res.json() as { content?: string };
+      setResponse(data.content ?? "");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="border-l border-base-200 bg-base-50 flex flex-col flex-shrink-0"
+      style={{ width: 320 }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-base-200 flex-shrink-0">
+        <span className="text-sm font-semibold">Diagnose</span>
+        <button className="btn btn-xs btn-ghost" onClick={onClose}>✕</button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Selected conclusion */}
+        <div>
+          <p className="text-xs text-base-content/50 uppercase tracking-wide mb-1" style={{ fontFamily: FONT_MONO }}>
+            Selected conclusion
+          </p>
+          <div className="rounded border border-primary/30 bg-primary/5 px-3 py-2">
+            <p className="text-xs" style={{ fontFamily: FONT_MONO }}>{conclusion.content}</p>
+          </div>
+        </div>
+
+        {/* Query */}
+        <div>
+          <p className="text-xs text-base-content/50 uppercase tracking-wide mb-1" style={{ fontFamily: FONT_MONO }}>
+            Query
+          </p>
+          <textarea
+            className="textarea textarea-bordered text-sm w-full"
+            rows={3}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            disabled={loading}
+          />
+        </div>
+
+        {/* Reasoning level */}
+        <div>
+          <p className="text-xs text-base-content/50 uppercase tracking-wide mb-2" style={{ fontFamily: FONT_MONO }}>
+            Reasoning level
+          </p>
+          <div className="join">
+            {(["low", "medium", "high"] as const).map((level) => (
+              <button
+                key={level}
+                className={`btn btn-xs join-item ${reasoningLevel === level ? "btn-neutral" : "btn-outline"}`}
+                onClick={() => setReasoningLevel(level)}
+                disabled={loading}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          className="btn btn-primary btn-sm w-full"
+          onClick={handleAsk}
+          disabled={loading || !query.trim()}
+        >
+          {loading ? <><span className="loading loading-spinner loading-xs" /> Asking…</> : "Ask"}
+        </button>
+
+        {error && <div className="alert alert-error text-xs"><span>{error}</span></div>}
+
+        {response !== null && (
+          <div>
+            <p className="text-xs text-base-content/50 uppercase tracking-wide mb-1" style={{ fontFamily: FONT_MONO }}>
+              Response
+            </p>
+            <div className="rounded border border-base-300 bg-base-100 px-3 py-2">
+              <p className="text-sm whitespace-pre-wrap">{response}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AgeBadge({ bucket }: { readonly bucket: ParsedEntry["bucket"] }) {
   const cfg = BUCKET_CONFIG[bucket];
   if (bucket === "fresh") return null;
@@ -371,10 +534,14 @@ function ConclusionsTab({
   conclusions: initialConclusions,
   workspaceId,
   peerId,
+  selectedId,
+  onSelect,
 }: {
   readonly conclusions: readonly Conclusion[]
   readonly workspaceId: string
   readonly peerId: string
+  readonly selectedId: string | null
+  readonly onSelect: (c: Conclusion) => void
 }) {
   const [conclusions, setConclusions] = useState<readonly Conclusion[]>(initialConclusions);
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -409,7 +576,11 @@ function ConclusionsTab({
   return (
     <div className="space-y-3">
       {conclusions.map((c) => (
-        <div key={c.id} className="card bg-base-100 shadow">
+        <div
+          key={c.id}
+          className={`card bg-base-100 shadow cursor-pointer transition-shadow ${selectedId === c.id ? "ring-2 ring-primary" : "hover:shadow-md"}`}
+          onClick={() => onSelect(c)}
+        >
           <div className="card-body py-3 px-4 space-y-2">
             <p className="text-sm text-base-content/85 whitespace-pre-wrap">{c.content}</p>
 
@@ -448,7 +619,7 @@ function ConclusionsTab({
               <p className="text-xs text-error">{deleteErrors[c.id]}</p>
             )}
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
               {confirming === c.id ? (
                 <>
                   <button

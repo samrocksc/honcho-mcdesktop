@@ -49,6 +49,8 @@ export default function WorkspaceTabs({ workspaceId, peers, sessions, conclusion
 function PeerList({ peers: initialPeers, workspaceId }: { readonly peers: readonly Peer[]; readonly workspaceId: string }) {
   const [peers, setPeers] = useState(initialPeers);
   const [newRow, setNewRow] = useState<EditState>({ type: "hidden" });
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
 
   const handleCreate = async () => {
     if (newRow.type !== "editing" || !newRow.value.trim()) return;
@@ -69,6 +71,24 @@ function PeerList({ peers: initialPeers, workspaceId }: { readonly peers: readon
       setNewRow({ type: "hidden" });
     } catch (e) {
       setNewRow({ ...newRow, saving: false, error: String(e) });
+    }
+  };
+
+  const handleDelete = async (peerId: string) => {
+    setDeleteErrors((prev) => ({ ...prev, [peerId]: "" }));
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/peers/${peerId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const { error } = (await res.json()) as { error: string };
+        setDeleteErrors((prev) => ({ ...prev, [peerId]: error ?? "Delete failed" }));
+        setConfirming(null);
+        return;
+      }
+      setPeers((prev) => prev.filter((p) => p.id !== peerId));
+      setConfirming(null);
+    } catch (e) {
+      setDeleteErrors((prev) => ({ ...prev, [peerId]: String(e) }));
+      setConfirming(null);
     }
   };
 
@@ -116,14 +136,36 @@ function PeerList({ peers: initialPeers, workspaceId }: { readonly peers: readon
       )}
 
       {peers.map((peer) => (
-        <Link key={peer.id} href={`/workspaces/${workspaceId}/peers/${peer.id}`} className="block">
-          <div className="card bg-base-100 shadow-sm hover:shadow transition-shadow">
-            <div className="card-body py-3 px-4">
-              <p className="font-mono text-sm font-medium">{peer.id}</p>
-              <p className="text-xs text-base-content/40">Created {new Date(peer.created_at).toLocaleDateString()}</p>
-            </div>
+        <div key={peer.id} className={`card shadow-sm ${confirming === peer.id ? "bg-error/5" : "bg-base-100"}`}>
+          <div className="card-body py-3 px-4">
+            {confirming === peer.id ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-error">Delete peer <span className="font-mono font-semibold">{peer.id}</span> and all their data?</p>
+                {deleteErrors[peer.id] && <p className="text-xs text-error">{deleteErrors[peer.id]}</p>}
+                <div className="flex gap-2">
+                  <button className="btn btn-xs btn-error" onClick={() => handleDelete(peer.id)}>Yes, delete</button>
+                  <button className="btn btn-xs btn-ghost" onClick={() => setConfirming(null)}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <Link href={`/workspaces/${workspaceId}/peers/${peer.id}`} className="font-mono text-sm font-medium link link-hover">
+                    {peer.id}
+                  </Link>
+                  <p className="text-xs text-base-content/40">Created {new Date(peer.created_at).toLocaleDateString()}</p>
+                  {deleteErrors[peer.id] && <p className="text-xs text-error mt-1">{deleteErrors[peer.id]}</p>}
+                </div>
+                <button
+                  className="btn btn-xs btn-ghost text-error"
+                  onClick={() => setConfirming(peer.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
-        </Link>
+        </div>
       ))}
     </div>
   );

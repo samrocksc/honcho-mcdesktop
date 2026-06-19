@@ -1,4 +1,4 @@
-import { honchoGet, honchoPost, honchoPostStream } from "./client";
+import { honchoGet, honchoPost, honchoPostStream, honchoDelete } from "./client";
 import type { Page, Peer, PeerContext, RepresentationResponse, Session, Message } from "./types";
 
 export const createPeer = (workspaceId: string, peerId: string): Promise<Peer> =>
@@ -102,3 +102,6 @@ export const searchPeerMessages = (
     limit: options.limit ?? 10,
     filters: options.filters ?? null,
   });
+
+export const deletePeer = (workspaceId: string, peerId: string): Promise<void> =>
+  honchoDelete(`/v3/workspaces/${workspaceId}/peers/${peerId}`);
