@@ -255,17 +255,39 @@ function SessionList({ sessions: initialSessions, workspaceId }: { readonly sess
   );
 }
 
-function ConclusionPanel({ conclusions, workspaceId, peers }: { readonly conclusions: readonly Conclusion[]; readonly workspaceId: string; readonly peers: readonly Peer[] }) {
+function ConclusionPanel({ conclusions: initialConclusions, workspaceId, peers }: { readonly conclusions: readonly Conclusion[]; readonly workspaceId: string; readonly peers: readonly Peer[] }) {
   // Honcho's /conclusions/query requires observer_id and observed_id peer
   // IDs. Both default to the first peer in the workspace; the user can
   // override either before searching. If a workspace has no peers the
   // search button stays disabled. (Tracked in tickets/0002.)
+  const [conclusions, setConclusions] = useState(initialConclusions);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<readonly Conclusion[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [observerId, setObserverId] = useState(peers[0]?.id ?? "");
   const [observedId, setObservedId] = useState(peers[0]?.id ?? "");
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
+
+  const handleDelete = async (conclusionId: string) => {
+    setDeleteErrors((prev) => ({ ...prev, [conclusionId]: "" }));
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/conclusions/${conclusionId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const { error } = (await res.json()) as { error: string };
+        setDeleteErrors((prev) => ({ ...prev, [conclusionId]: error ?? "Delete failed" }));
+        setConfirming(null);
+        return;
+      }
+      setConclusions((prev) => prev.filter((c) => c.id !== conclusionId));
+      if (results) setResults((prev) => prev?.filter((c) => c.id !== conclusionId) ?? null);
+      setConfirming(null);
+    } catch (e) {
+      setDeleteErrors((prev) => ({ ...prev, [conclusionId]: String(e) }));
+      setConfirming(null);
+    }
+  };
 
   const handleSearch = async () => {
     if (!query.trim() || !observerId || !observedId) return;
@@ -342,10 +364,32 @@ function ConclusionPanel({ conclusions, workspaceId, peers }: { readonly conclus
         : (
           <div className="space-y-2">
             {displayed.map((c) => (
-              <div key={c.id} className="card bg-base-100 shadow-sm">
+              <div key={c.id} className={`card shadow-sm ${confirming === c.id ? "bg-error/5" : "bg-base-100"}`}>
                 <div className="card-body py-3 px-4">
-                  <p className="text-sm">{c.content}</p>
-                  <p className="text-xs text-base-content/40 font-mono">{c.observer_id} → {c.observed_id}</p>
+                  {confirming === c.id ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs text-error">Delete this conclusion?</p>
+                      {deleteErrors[c.id] && <p className="text-xs text-error">{deleteErrors[c.id]}</p>}
+                      <div className="flex gap-2">
+                        <button className="btn btn-xs btn-error" onClick={() => handleDelete(c.id)}>Yes, delete</button>
+                        <button className="btn btn-xs btn-ghost" onClick={() => setConfirming(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm">{c.content}</p>
+                        <p className="text-xs text-base-content/40 font-mono">{c.observer_id} → {c.observed_id}</p>
+                        {deleteErrors[c.id] && <p className="text-xs text-error mt-1">{deleteErrors[c.id]}</p>}
+                      </div>
+                      <button
+                        className="btn btn-xs btn-ghost text-error shrink-0"
+                        onClick={() => setConfirming(c.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

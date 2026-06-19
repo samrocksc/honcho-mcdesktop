@@ -9,13 +9,14 @@ type Props = {
   readonly initialObservedId?: string
 }
 
-type CardState = "queued" | "writing" | "confirmed" | "error"
+type CardState = "staged" | "committed" | "error"
 
 type ConclusionCard = {
   readonly id: string
   readonly content: string
   readonly filename: string
   state: CardState
+  selected: boolean
   error?: string
 }
 
@@ -36,6 +37,7 @@ export default function ImportPanel({ workspaceId, peers, initialObservedId }: P
   const [files, setFiles] = useState<ImportFile[]>([]);
   const [cards, setCards] = useState<ConclusionCard[]>([]);
   const [running, setRunning] = useState(false);
+  const [committing, setCommitting] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -86,18 +88,8 @@ export default function ImportPanel({ workspaceId, peers, initialObservedId }: P
               const id = String(cardCounter++);
               setCards((prev) => [
                 ...prev,
-                { id, content: String(event.content), filename: String(event.filename), state: "queued" },
+                { id, content: String(event.content), filename: String(event.filename), state: "staged", selected: true },
               ]);
-            } else if (event.type === "writing") {
-              const filename = String(event.filename);
-              setCards((prev) =>
-                prev.map((c) => c.filename === filename && c.state === "queued" ? { ...c, state: "writing" } : c),
-              );
-            } else if (event.type === "batch_confirmed") {
-              const filename = String(event.filename);
-              setCards((prev) =>
-                prev.map((c) => c.filename === filename && c.state === "writing" ? { ...c, state: "confirmed" } : c),
-              );
             } else if (event.type === "batch_error") {
               const filename = String(event.filename);
               const errMsg = String(event.error);
@@ -107,25 +99,70 @@ export default function ImportPanel({ workspaceId, peers, initialObservedId }: P
                 ),
               );
             } else if (event.type === "done") {
+              const total = Number(event.total_conclusions);
+              const totalFiles = Number(event.total_files);
+              const totalErrors = Number(event.total_errors);
               setSummary(
-                `${event.total_conclusions} conclusion${event.total_conclusions !== 1 ? "s" : ""} written` +
-                ` from ${event.total_files} file${event.total_files !== 1 ? "s" : ""}` +
-                (Number(event.total_errors) > 0 ? ` · ${event.total_errors} error(s)` : ""),
+                `${total} conclusion${total !== 1 ? "s" : ""} extracted` +
+                ` from ${totalFiles} file${totalFiles !== 1 ? "s" : ""}` +
+                (totalErrors > 0 ? ` · ${totalErrors} error(s)` : "") +
+                " — review and commit below",
               );
             }
           } catch {}
         }
       }
-      setCards((prev) =>
-        prev.map((c) =>
-          c.state === "writing" ? { ...c, state: "error", error: "Stream ended unexpectedly" } : c,
-        ),
-      );
     } catch (err) {
       setError(String(err));
     } finally {
       setRunning(false);
     }
+  };
+
+  const handleCommit = async () => {
+    const selected = cards.filter(c => c.selected && c.state === "staged");
+    if (!selected.length || committing) return;
+    setCommitting(true);
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/conclusions/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conclusions: selected.map(c => ({
+            content: c.content,
+            observer_id: observerId,
+            observed_id: observedId,
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error(`Commit failed: ${res.status}`);
+      const committed = selected.map(c => c.id);
+      setCards(prev => prev.map(c =>
+        committed.includes(c.id) ? { ...c, state: "committed", selected: false } : c
+      ));
+      setSummary(`${selected.length} conclusion${selected.length !== 1 ? "s" : ""} written`);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  const stagedCards = cards.filter(c => c.state === "staged");
+  const selectedCount = stagedCards.filter(c => c.selected).length;
+  const allSelected = stagedCards.length > 0 && selectedCount === stagedCards.length;
+  const showReview = !running && stagedCards.length > 0;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setCards(prev => prev.map(c => c.state === "staged" ? { ...c, selected: false } : c));
+    } else {
+      setCards(prev => prev.map(c => c.state === "staged" ? { ...c, selected: true } : c));
+    }
+  };
+
+  const toggleCard = (id: string) => {
+    setCards(prev => prev.map(c => c.id === id ? { ...c, selected: !c.selected } : c));
   };
 
   return (
@@ -245,7 +282,7 @@ export default function ImportPanel({ workspaceId, peers, initialObservedId }: P
           disabled={noPeers || !files.length || running}
         >
           {running
-            ? <><span className="loading loading-spinner loading-sm" /> Hydrating…</>
+            ? <><span className="loading loading-spinner loading-sm" /> Extracting…</>
             : `Hydrate Workspace (${files.length} file${files.length !== 1 ? "s" : ""})`}
         </button>
 
@@ -253,14 +290,44 @@ export default function ImportPanel({ workspaceId, peers, initialObservedId }: P
 
         {/* Summary */}
         {summary && (
-          <div className="alert alert-success text-sm"><span>{summary}</span></div>
+          <div className="alert alert-info text-sm"><span>{summary}</span></div>
+        )}
+
+        {/* Review toolbar */}
+        {showReview && (
+          <div className="flex items-center justify-between gap-4 px-1">
+            <span className="text-sm text-base-content/60">
+              {selectedCount} of {stagedCards.length} selected
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                className="text-sm text-primary underline"
+                onClick={toggleSelectAll}
+              >
+                {allSelected ? "Deselect all" : "Select all"}
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleCommit}
+                disabled={selectedCount === 0 || committing}
+              >
+                {committing
+                  ? <><span className="loading loading-spinner loading-xs" /> Committing…</>
+                  : `Commit ${selectedCount} selected`}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Conclusion cards */}
         {cards.length > 0 && (
           <div className="space-y-2">
             {cards.map((card) => (
-              <ConclusionCard key={card.id} card={card} />
+              <ConclusionCard
+                key={card.id}
+                card={card}
+                onToggle={card.state === "staged" ? () => toggleCard(card.id) : undefined}
+              />
             ))}
           </div>
         )}
@@ -269,37 +336,57 @@ export default function ImportPanel({ workspaceId, peers, initialObservedId }: P
   );
 }
 
-function ConclusionCard({ card }: { readonly card: ConclusionCard }) {
+function ConclusionCard({
+  card,
+  onToggle,
+}: {
+  readonly card: ConclusionCard
+  readonly onToggle?: () => void
+}) {
   const stateStyles: Record<CardState, string> = {
-    queued:    "bg-base-100 border border-base-300 opacity-60",
-    writing:   "bg-orange-50 border border-orange-200",
-    confirmed: "bg-green-50 border border-green-200",
+    staged:    "bg-base-100 border border-base-300",
+    committed: "bg-green-50 border border-green-200",
     error:     "bg-red-50 border border-red-200",
   };
   const labelStyles: Record<CardState, string> = {
-    queued:    "text-base-content/30",
-    writing:   "text-orange-400",
-    confirmed: "text-green-500",
+    staged:    "text-base-content/30",
+    committed: "text-green-500",
     error:     "text-red-400",
   };
   const labels: Record<CardState, string> = {
-    queued:    "queued",
-    writing:   "writing…",
-    confirmed: "✓ written",
+    staged:    "",
+    committed: "✓ written",
     error:     "error",
   };
 
+  const isUnselectedStaged = card.state === "staged" && !card.selected;
+
   return (
-    <div className={`rounded-lg px-4 py-3 transition-all duration-300 ${stateStyles[card.state]}`}>
-      <p className="text-sm">{card.content}</p>
-      <div className="flex items-center gap-2 mt-1">
-        {card.state === "writing" && (
-          <span className="inline-block w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+    <div
+      className={`rounded-lg px-4 py-3 transition-all duration-300 ${stateStyles[card.state]} ${isUnselectedStaged ? "opacity-50" : ""} ${onToggle ? "cursor-pointer" : ""}`}
+      onClick={onToggle}
+    >
+      <div className="flex items-start gap-3">
+        {card.state === "staged" && (
+          <input
+            type="checkbox"
+            className="checkbox checkbox-sm mt-0.5 shrink-0"
+            checked={card.selected}
+            onChange={onToggle}
+            onClick={(e) => e.stopPropagation()}
+          />
         )}
-        <span className={`text-xs font-mono ${labelStyles[card.state]}`}>
-          {labels[card.state]}{card.state === "error" && card.error ? ` — ${card.error}` : ""}
-        </span>
-        <span className="text-xs text-base-content/30 font-mono">{card.filename}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm">{card.content}</p>
+          <div className="flex items-center gap-2 mt-1">
+            {labels[card.state] && (
+              <span className={`text-xs font-mono ${labelStyles[card.state]}`}>
+                {labels[card.state]}{card.state === "error" && card.error ? ` — ${card.error}` : ""}
+              </span>
+            )}
+            <span className="text-xs text-base-content/30 font-mono">{card.filename}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

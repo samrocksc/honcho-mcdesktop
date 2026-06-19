@@ -1,5 +1,8 @@
+"use client";
+import { useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
-import type { Peer, RepresentationResponse, PeerContext, Session } from "@/lib/honcho/types";
+import type { Peer, RepresentationResponse, PeerContext, Session, Conclusion } from "@/lib/honcho/types";
 
 type Props = {
   readonly peer: Peer | null
@@ -7,9 +10,31 @@ type Props = {
   readonly context: PeerContext | null
   readonly sessions: readonly Session[]
   readonly workspaceId: string
+  readonly conclusions: readonly Conclusion[]
+  readonly peerId: string
 }
 
-export default function PeerDetail({ peer, representation, context, sessions, workspaceId }: Props) {
+type Tab = "overview" | "inspect" | "conclusions"
+
+const FONT_MONO = "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, monospace";
+
+export default function PeerDetail({ peer, representation, context, sessions, workspaceId, conclusions, peerId }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+
+  const tabs: { id: Tab; label: ReactNode }[] = [
+    { id: "overview", label: "Overview" },
+    { id: "inspect", label: "Inspect" },
+    {
+      id: "conclusions",
+      label: (
+        <>
+          Conclusions
+          <span className="badge badge-sm badge-neutral ml-2">{conclusions.length}</span>
+        </>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
       {peer && (
@@ -22,90 +47,435 @@ export default function PeerDetail({ peer, representation, context, sessions, wo
           </Link>
         </div>
       )}
-      <div className="flex flex-col lg:flex-row gap-6">
-        <LeftPanel peer={peer} representation={representation} context={context} />
-        <RightPanel sessions={sessions} workspaceId={workspaceId} />
+
+      <div role="tablist" className="tabs tabs-bordered mb-2">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            className={`tab ${activeTab === t.id ? "tab-active" : ""}`}
+            onClick={() => setActiveTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "overview" && (
+        <OverviewTab
+          peer={peer}
+          representation={representation}
+          context={context}
+          sessions={sessions}
+          workspaceId={workspaceId}
+        />
+      )}
+      {activeTab === "inspect" && (
+        <InspectTab context={context} representation={representation} />
+      )}
+      {activeTab === "conclusions" && (
+        <ConclusionsTab conclusions={conclusions} workspaceId={workspaceId} peerId={peerId} />
+      )}
+    </div>
+  );
+}
+
+function OverviewTab({ peer, representation, context, sessions, workspaceId }: {
+  readonly peer: Peer | null
+  readonly representation: RepresentationResponse | null
+  readonly context: PeerContext | null
+  readonly sessions: readonly Session[]
+  readonly workspaceId: string
+}) {
+  return (
+    <div className="flex flex-col lg:flex-row gap-6">
+      <div className="lg:w-1/2 space-y-4">
+        {representation?.representation && (
+          <div className="card bg-base-100 shadow">
+            <div className="card-body">
+              <h3 className="card-title text-base">Representation</h3>
+              <p className="text-sm whitespace-pre-wrap text-base-content/80">{representation.representation}</p>
+            </div>
+          </div>
+        )}
+
+        {context && (context.representation || context.peer_card) && (
+          <div className="card bg-base-100 shadow">
+            <div className="card-body">
+              <h3 className="card-title text-base">Context</h3>
+              {context.representation && (
+                <p className="text-sm text-base-content/80 mb-2">{context.representation}</p>
+              )}
+              {context.peer_card && context.peer_card.length > 0 && (
+                <ul className="list-disc list-inside text-sm text-base-content/70 space-y-1">
+                  {context.peer_card.map((item, i) => <li key={i}>{item}</li>)}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
+        {peer?.metadata && Object.keys(peer.metadata).length > 0 && (
+          <div className="card bg-base-100 shadow">
+            <div className="card-body">
+              <h3 className="card-title text-base">Metadata</h3>
+              <pre className="text-xs overflow-auto bg-base-200 rounded p-2">
+                {JSON.stringify(peer.metadata, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
+
+        {!representation && !context && !peer && (
+          <p className="text-base-content/50 text-sm">No peer data available.</p>
+        )}
+      </div>
+
+      <div className="lg:w-1/2">
+        <h3 className="font-semibold mb-3">Sessions ({sessions.length})</h3>
+        {sessions.length === 0
+          ? <p className="text-base-content/50 text-sm">No sessions found.</p>
+          : (
+            <div className="space-y-2">
+              {sessions.map((session) => (
+                <Link key={session.id} href={`/workspaces/${workspaceId}/sessions/${session.id}`} className="block">
+                  <div className="card bg-base-100 shadow-sm hover:shadow transition-shadow">
+                    <div className="card-body py-3 px-4">
+                      <div className="flex items-center justify-between">
+                        <p className="font-mono text-sm font-medium">{session.id}</p>
+                        {!session.is_active && <span className="badge badge-sm badge-ghost">inactive</span>}
+                      </div>
+                      <p className="text-xs text-base-content/40">
+                        Created {new Date(session.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )
+        }
       </div>
     </div>
   );
 }
 
-function LeftPanel({ peer, representation, context }: {
-  readonly peer: Peer | null
-  readonly representation: RepresentationResponse | null
+// ── Entry parsing ─────────────────────────────────────────────────────────────
+
+type ParsedEntry = {
+  timestamp: Date
+  content: string
+  ageDays: number
+  bucket: "fresh" | "recent" | "aging" | "stale"
+}
+
+type ParsedSection = {
+  heading: string | null
+  entries: ParsedEntry[]
+}
+
+const ENTRY_RE = /^\[(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)\]\s+(.+)$/;
+
+function ageBucket(days: number): ParsedEntry["bucket"] {
+  if (days < 7) return "fresh";
+  if (days < 30) return "recent";
+  if (days < 90) return "aging";
+  return "stale";
+}
+
+function parseRepresentation(raw: string): ParsedSection[] {
+  const now = Date.now();
+  const lines = raw.split("\n");
+  const sections: ParsedSection[] = [];
+  let current: ParsedSection = { heading: null, entries: [] };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    if (trimmed.startsWith("#")) {
+      if (current.entries.length > 0 || current.heading) sections.push(current);
+      current = { heading: trimmed.replace(/^#+\s*/, ""), entries: [] };
+      continue;
+    }
+
+    const m = ENTRY_RE.exec(trimmed);
+    if (m) {
+      const ts = new Date(m[1].replace(" ", "T"));
+      const ageDays = Math.floor((now - ts.getTime()) / 86400000);
+      current.entries.push({
+        timestamp: ts,
+        content: m[2],
+        ageDays,
+        bucket: ageBucket(ageDays),
+      });
+    }
+  }
+
+  if (current.entries.length > 0 || current.heading) sections.push(current);
+  return sections;
+}
+
+// ── Colour scheme (mirrors stats page) ───────────────────────────────────────
+
+const BUCKET_CONFIG = {
+  fresh:  { label: "< 7d",   border: "#1a1a1a", bg: "transparent",        text: "#1a1a1a" },
+  recent: { label: "7–30d",  border: "#595959", bg: "transparent",        text: "#595959" },
+  aging:  { label: "30–90d", border: "#f59e0b", bg: "rgba(245,158,11,.06)", text: "#b45309" },
+  stale:  { label: "> 90d",  border: "#d97706", bg: "rgba(217,119,6,.10)", text: "#92400e" },
+} as const;
+
+// ── Inspect tab ───────────────────────────────────────────────────────────────
+
+function InspectTab({ context, representation }: {
   readonly context: PeerContext | null
+  readonly representation: RepresentationResponse | null
 }) {
+  const raw = context?.representation ?? representation?.representation ?? null;
+
+  if (!raw) {
+    return <p className="text-base-content/50 text-sm">No context available to inspect.</p>;
+  }
+
+  const sections = parseRepresentation(raw);
+  const allEntries = sections.flatMap((s) => s.entries);
+
+  if (allEntries.length === 0) {
+    return (
+      <div className="card bg-base-100 shadow">
+        <div className="card-body">
+          <pre className="text-xs text-base-content/60 whitespace-pre-wrap" style={{ fontFamily: FONT_MONO }}>{raw}</pre>
+        </div>
+      </div>
+    );
+  }
+
+  const counts = { fresh: 0, recent: 0, aging: 0, stale: 0 };
+  for (const e of allEntries) counts[e.bucket]++;
+  const total = allEntries.length;
+  const charCount = raw.length;
+
   return (
-    <div className="lg:w-1/2 space-y-4">
-      {representation?.representation && (
-        <div className="card bg-base-100 shadow">
-          <div className="card-body">
-            <h3 className="card-title text-base">Representation</h3>
-            <p className="text-sm whitespace-pre-wrap text-base-content/80">{representation.representation}</p>
-          </div>
-        </div>
-      )}
-
-      {context && (context.representation || context.peer_card) && (
-        <div className="card bg-base-100 shadow">
-          <div className="card-body">
-            <h3 className="card-title text-base">Context</h3>
-            {context.representation && (
-              <p className="text-sm text-base-content/80 mb-2">{context.representation}</p>
-            )}
-            {context.peer_card && context.peer_card.length > 0 && (
-              <ul className="list-disc list-inside text-sm text-base-content/70 space-y-1">
-                {context.peer_card.map((item, i) => <li key={i}>{item}</li>)}
-              </ul>
+    <div className="space-y-4">
+      {/* Summary bar */}
+      <div className="card bg-base-100 shadow">
+        <div className="card-body py-4 space-y-3">
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <span style={{ fontFamily: FONT_MONO }}>{total} entries · {charCount.toLocaleString()} chars</span>
+            {allEntries.length > 0 && (
+              <span className="text-base-content/50" style={{ fontFamily: FONT_MONO }}>
+                oldest: {Math.max(...allEntries.map((e) => e.ageDays))}d ago
+              </span>
             )}
           </div>
-        </div>
-      )}
 
-      {peer?.metadata && Object.keys(peer.metadata).length > 0 && (
-        <div className="card bg-base-100 shadow">
-          <div className="card-body">
-            <h3 className="card-title text-base">Metadata</h3>
-            <pre className="text-xs overflow-auto bg-base-200 rounded p-2">
-              {JSON.stringify(peer.metadata, null, 2)}
-            </pre>
+          {/* Freshness bar */}
+          <div className="space-y-1">
+            <div className="flex gap-1 h-3 rounded overflow-hidden">
+              {(["fresh", "recent", "aging", "stale"] as const).map((b) => {
+                const w = total > 0 ? (counts[b] / total) * 100 : 0;
+                if (w === 0) return null;
+                return (
+                  <div
+                    key={b}
+                    style={{ width: `${w}%`, background: BUCKET_CONFIG[b].border, flexShrink: 0 }}
+                    title={`${BUCKET_CONFIG[b].label}: ${counts[b]}`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {(["fresh", "recent", "aging", "stale"] as const).map((b) => (
+                <span
+                  key={b}
+                  className="flex items-center gap-1 text-xs"
+                  style={{ fontFamily: FONT_MONO, color: "#737373" }}
+                >
+                  <span style={{ width: 8, height: 8, background: BUCKET_CONFIG[b].border, borderRadius: 2, display: "inline-block" }} />
+                  {BUCKET_CONFIG[b].label} · {counts[b]}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {!representation && !context && !peer && (
-        <p className="text-base-content/50 text-sm">No peer data available.</p>
-      )}
+      {/* Entries by section */}
+      {sections.map((section, si) => (
+        <div key={si} className="card bg-base-100 shadow">
+          <div className="card-body py-4 space-y-2">
+            {section.heading && (
+              <h3 className="text-sm font-semibold text-base-content/70 uppercase tracking-wide">
+                {section.heading}
+              </h3>
+            )}
+            {section.entries.length === 0 && (
+              <p className="text-xs text-base-content/40" style={{ fontFamily: FONT_MONO }}>No entries</p>
+            )}
+            {section.entries.map((entry, ei) => {
+              const cfg = BUCKET_CONFIG[entry.bucket];
+              return (
+                <div
+                  key={ei}
+                  style={{
+                    borderLeft: `3px solid ${cfg.border}`,
+                    background: cfg.bg,
+                    borderRadius: "0 4px 4px 0",
+                    padding: "6px 10px",
+                  }}
+                >
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span
+                      className="text-xs shrink-0"
+                      style={{ fontFamily: FONT_MONO, color: cfg.text, opacity: 0.7 }}
+                    >
+                      {entry.timestamp.toISOString().slice(0, 10)} · {entry.ageDays}d ago
+                    </span>
+                    <AgeBadge bucket={entry.bucket} />
+                  </div>
+                  <p className="text-sm mt-1 text-base-content/85" style={{ fontFamily: FONT_MONO }}>
+                    {entry.content}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function RightPanel({ sessions, workspaceId }: { readonly sessions: readonly Session[]; readonly workspaceId: string }) {
+function AgeBadge({ bucket }: { readonly bucket: ParsedEntry["bucket"] }) {
+  const cfg = BUCKET_CONFIG[bucket];
+  if (bucket === "fresh") return null;
   return (
-    <div className="lg:w-1/2">
-      <h3 className="font-semibold mb-3">Sessions ({sessions.length})</h3>
-      {sessions.length === 0
-        ? <p className="text-base-content/50 text-sm">No sessions found.</p>
-        : (
-          <div className="space-y-2">
-            {sessions.map((session) => (
-              <Link key={session.id} href={`/workspaces/${workspaceId}/sessions/${session.id}`} className="block">
-                <div className="card bg-base-100 shadow-sm hover:shadow transition-shadow">
-                  <div className="card-body py-3 px-4">
-                    <div className="flex items-center justify-between">
-                      <p className="font-mono text-sm font-medium">{session.id}</p>
-                      {!session.is_active && <span className="badge badge-sm badge-ghost">inactive</span>}
-                    </div>
-                    <p className="text-xs text-base-content/40">
-                      Created {new Date(session.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )
+    <span
+      className="text-xs px-1.5 py-0.5 rounded"
+      style={{
+        fontFamily: FONT_MONO,
+        color: cfg.text,
+        background: cfg.bg === "transparent" ? "rgba(0,0,0,0.05)" : cfg.bg,
+        border: `1px solid ${cfg.border}`,
+        opacity: 0.85,
+      }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+// ── Conclusions tab ───────────────────────────────────────────────────────────
+
+function ConclusionsTab({
+  conclusions: initialConclusions,
+  workspaceId,
+  peerId,
+}: {
+  readonly conclusions: readonly Conclusion[]
+  readonly workspaceId: string
+  readonly peerId: string
+}) {
+  const [conclusions, setConclusions] = useState<readonly Conclusion[]>(initialConclusions);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
+
+  async function handleDelete(id: string) {
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/conclusions/${id}`, { method: "DELETE" });
+      if (res.status === 204) {
+        setConclusions((prev) => prev.filter((c) => c.id !== id));
+        setConfirming(null);
+        setDeleteErrors((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      } else {
+        const text = await res.text().catch(() => res.statusText);
+        setDeleteErrors((prev) => ({ ...prev, [id]: text || `Error ${res.status}` }));
+        setConfirming(null);
       }
+    } catch (err) {
+      setDeleteErrors((prev) => ({ ...prev, [id]: err instanceof Error ? err.message : "Unknown error" }));
+      setConfirming(null);
+    }
+  }
+
+  if (conclusions.length === 0) {
+    return <p className="text-base-content/50 text-sm">No conclusions found.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {conclusions.map((c) => (
+        <div key={c.id} className="card bg-base-100 shadow">
+          <div className="card-body py-3 px-4 space-y-2">
+            <p className="text-sm text-base-content/85 whitespace-pre-wrap">{c.content}</p>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs text-base-content/50" style={{ fontFamily: FONT_MONO }}>
+              <span>
+                {c.observer_id === peerId ? (
+                  <>observer: <span className="font-semibold text-base-content/70">self</span></>
+                ) : (
+                  <>observer: <span className="font-semibold text-base-content/70">{c.observer_id}</span></>
+                )}
+              </span>
+              <span>·</span>
+              <span>
+                {c.observed_id === peerId ? (
+                  <>about: <span className="font-semibold text-base-content/70">self</span></>
+                ) : (
+                  <>about: <span className="font-semibold text-base-content/70">{c.observed_id}</span></>
+                )}
+              </span>
+              <span>·</span>
+              <span>{new Date(c.created_at).toLocaleDateString()}</span>
+              {c.session_id && (
+                <>
+                  <span>·</span>
+                  <Link
+                    href={`/workspaces/${workspaceId}/sessions/${c.session_id}`}
+                    className="link link-hover text-base-content/50"
+                  >
+                    session
+                  </Link>
+                </>
+              )}
+            </div>
+
+            {deleteErrors[c.id] && (
+              <p className="text-xs text-error">{deleteErrors[c.id]}</p>
+            )}
+
+            <div className="flex justify-end gap-2">
+              {confirming === c.id ? (
+                <>
+                  <button
+                    className="btn btn-xs btn-error"
+                    onClick={() => handleDelete(c.id)}
+                  >
+                    Confirm delete
+                  </button>
+                  <button
+                    className="btn btn-xs btn-ghost"
+                    onClick={() => setConfirming(null)}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="btn btn-xs btn-ghost text-error"
+                  onClick={() => setConfirming(c.id)}
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

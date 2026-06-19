@@ -1,6 +1,5 @@
 import type { NextRequest } from "next/server";
 import { askPeer } from "@/lib/honcho/peers";
-import { createConclusions } from "@/lib/honcho/conclusions";
 import { stripMarkdown, chunkByHeading, buildExtractionPrompt, parseConclusions } from "@/lib/honcho/import";
 
 export const maxDuration = 300;
@@ -70,14 +69,6 @@ export async function POST(
             continue;
           }
 
-          send({ type: "writing", filename: file.name, count: allConclusions.length });
-
-          const items = allConclusions.map((content) => ({ content, observer_id, observed_id }));
-          for (let i = 0; i < items.length; i += 100) {
-            await createConclusions(id, items.slice(i, i + 100));
-          }
-
-          send({ type: "batch_confirmed", filename: file.name, count: allConclusions.length });
           totalConclusions += allConclusions.length;
         } catch (err) {
           send({ type: "batch_error", filename: file.name, error: String(err) });
