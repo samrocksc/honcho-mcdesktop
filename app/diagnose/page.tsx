@@ -154,9 +154,9 @@ export default function DiagnosePage() {
       <div>
         <h1 className="text-2xl font-bold">Diagnose</h1>
         <p className="text-sm text-base-content/60 mt-1">
-          Paste a question and see (1) the raw context Honcho would inject, (2) the answer
-          Honcho&apos;s dialectic LLM would return. Use this to audit what an agent actually
-          sees before relying on it.
+          Paste a question and see the context Honcho would inject into your AI, and the
+          answer it would produce. Use this to check what your agent actually knows before
+          relying on it.
         </p>
       </div>
 

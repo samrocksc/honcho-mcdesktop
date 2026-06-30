@@ -136,7 +136,16 @@ function OverviewTab({ peer, representation, context, sessions, workspaceId }: {
           <div className="card bg-base-100 shadow">
             <div className="card-body">
               <h3 className="card-title text-base">Representation</h3>
-              <p className="text-sm whitespace-pre-wrap text-base-content/80">{representation.representation}</p>
+              <div className="space-y-0.5">
+                {representation.representation.split("\n").map((line, i) => {
+                  const heading = line.match(/^#+\s+(.+)/);
+                  if (heading) return (
+                    <p key={i} className="text-xs font-semibold text-base-content/50 uppercase tracking-wide mt-3 mb-1">{heading[1]}</p>
+                  );
+                  if (!line.trim()) return <div key={i} className="h-1" />;
+                  return <p key={i} className="text-sm text-base-content/80 leading-relaxed">{line}</p>;
+                })}
+              </div>
             </div>
           </div>
         )}

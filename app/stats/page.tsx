@@ -152,24 +152,17 @@ export default function StatsPage() {
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
 
-  // Lazy-load heatmap when its panel scrolls into view.
   useEffect(() => {
-    const el = heatmapRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { void fetchHeatmap(); observer.disconnect(); } },
-      { threshold: 0.1 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [fetchHeatmap]);
+    if (!allData) return;
+    void fetchHeatmap();
+  }, [allData, fetchHeatmap]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold" style={{ fontFamily: FONT_DISPLAY }}>Stats</h1>
         <p className="text-sm text-base-content/60 mt-1" style={{ fontFamily: FONT_DISPLAY }}>
-          Volume over time, runbook freshness, peer activity, and cross-workspace coverage.
+          Volume over time, conclusion freshness, peer activity, and cross-workspace coverage.
           Monochrome by design — data shape carries the signal.
         </p>
       </div>
@@ -230,8 +223,8 @@ export default function StatsPage() {
           </Panel>
 
           <Panel
-            title="Runbook freshness"
-            subtitle="Age of conclusions (curated facts) per workspace. Amber = aging or stale."
+            title="Conclusion freshness"
+            subtitle="Age of stored facts per workspace. Amber = aging or stale."
           >
             <FreshnessPanel rows={allData.freshness.rows} asOf={allData.freshness.asOf} />
           </Panel>
@@ -660,7 +653,8 @@ function CoverageMatrix({ data }: { data: CrossWorkspaceCoverageResponse }) {
 function Placeholder({ label }: { label: string }) {
   return (
     <div className="border border-dashed border-base-300 rounded-md p-6 text-center text-sm text-base-content/40" style={{ fontFamily: FONT }}>
-      [{label}] — coming next
+      <span className="loading loading-spinner loading-xs mr-2 opacity-40" />
+      {label} — loading…
     </div>
   );
 }

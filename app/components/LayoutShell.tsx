@@ -14,6 +14,7 @@ export default function LayoutShell({ children }: { readonly children: React.Rea
         </a>
         <div className="ml-auto flex gap-2 items-center">
           <a href="/" className="btn btn-ghost btn-sm">Workspaces</a>
+          <a href="/learn" className="btn btn-ghost btn-sm">Learn</a>
           <a href="/diagnose" className="btn btn-ghost btn-sm">Diagnose</a>
           <a href="/stats" className="btn btn-ghost btn-sm">Stats</a>
           <button

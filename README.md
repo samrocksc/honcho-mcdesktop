@@ -1,6 +1,8 @@
-# Honcho Desktop
+# Honcho Helpdesk
 
-I built this because I wanted a proper dashboard for my self-hosted [Honcho](https://github.com/plastic-labs/honcho) instance. Honcho is a user context and memory server for AI applications, and the official tooling doesn't include a UI for browsing what it knows. This fills that gap: browse workspaces, peers, sessions, messages, and conclusions, query peer knowledge via chat, import markdown notes to hydrate the memory store, and monitor activity analytics.
+A dashboard for self-hosted [Honcho](https://github.com/plastic-labs/honcho) instances. Honcho is a user context and memory server for AI applications — the official cloud dashboard (honcho.dev) covers the basics, but this fills the gap for teams that self-host or need more depth: browse workspaces, peers, sessions, messages, and conclusions, query peer knowledge via chat, import markdown notes to hydrate the memory store, monitor activity analytics, and diagnose exactly what context your AI would receive.
+
+> **New to Honcho?** Visit [`/learn`](http://localhost:3000/learn) after starting the app for a plain-English overview of how Honcho works and what each term in this dashboard means.
 
 ## Requirements
 
@@ -40,6 +42,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | Route | Description |
 |---|---|
 | `/` | All workspaces as clickable cards |
+| `/learn` | Plain-English guide to Honcho concepts, with technical detail for engineers |
 | `/workspaces` | Searchable, paginated workspace table |
 | `/workspaces/[id]` | Tabs for Peers, Sessions, Conclusions, and Ask |
 | `/workspaces/[id]/peers/[peerId]` | Peer representation, context, and sessions |
@@ -49,6 +52,10 @@ Open [http://localhost:3000](http://localhost:3000).
 | `/diagnose` | Inspect what Honcho knows about a peer |
 
 ## Features
+
+### Learn page
+
+`/learn` explains Honcho to both non-technical developers and AI engineers. It covers the memory loop in three steps, defines every term used in the dashboard (workspace, peer, session, conclusion, representation, context), and links to the relevant pages. Plain-English descriptions sit alongside technical API notes so both audiences get what they need.
 
 ### Ask tab
 
@@ -66,11 +73,11 @@ Upload markdown files such as daily notes, knowledge docs, or how-tos. The app u
 
 Four analytics views built from your live Honcho data.
 
-**Volume** shows message and conclusion counts by day, per workspace. **Freshness** shows how recently conclusions were written, bucketed into fresh, recent, aging, and stale. **Coverage** shows which peers have conclusions across which workspaces. **Heatmap** shows peer message activity over time.
+**Volume** shows message and conclusion counts by day, per workspace. **Conclusion freshness** shows how recently conclusions were written, bucketed into fresh, recent, aging, and stale. **Coverage** shows which peers have conclusions across which workspaces. **Heatmap** shows peer message activity over time.
 
 ### Diagnose
 
-Inspect exactly what context Honcho would return for a given observer and target pair. This is useful for debugging memory retrieval before deploying to production.
+Inspect exactly what context Honcho would return for a given observer and target pair. Useful for debugging memory retrieval before deploying to production.
 
 ## How Honcho works
 

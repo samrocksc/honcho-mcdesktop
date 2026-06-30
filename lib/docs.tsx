@@ -17,7 +17,7 @@ const statsDoc: DocEntry = {
         <ul className="space-y-1 text-base-content/70">
           <li><strong className="text-base-content">conclusions</strong> — facts Honcho has written down about people</li>
           <li><strong className="text-base-content">messages</strong> — individual chat messages</li>
-          <li><strong className="text-base-content">both</strong> — conclusions + messages added together</li>
+          <li><strong className="text-base-content">both</strong> — conclusions and messages added together</li>
         </ul>
       </div>
       <div>
@@ -143,12 +143,30 @@ const fallbackDoc: DocEntry = {
   ),
 };
 
+const learnDoc: DocEntry = {
+  title: "Learn",
+  content: (
+    <div className="space-y-4 text-sm leading-relaxed">
+      <p>This page explains how Honcho works and what the terms in this dashboard mean.</p>
+      <div>
+        <h4 className="font-semibold text-base-content mb-1">New here?</h4>
+        <p className="text-base-content/70">Start at the top — the memory loop diagram shows the full picture in three steps.</p>
+      </div>
+      <div>
+        <h4 className="font-semibold text-base-content mb-1">Looking up a term?</h4>
+        <p className="text-base-content/70">The Key concepts section covers Workspace, Peer, Session, Conclusion, Representation, and Context — each with a plain-English explanation and a technical note.</p>
+      </div>
+    </div>
+  ),
+};
+
 export function getDoc(pathname: string): DocEntry {
   if (pathname.includes("/peers/")) return peerDetailDoc;
   if (pathname.includes("/sessions/")) return sessionDetailDoc;
   if (pathname.startsWith("/workspaces/")) return workspaceDetailDoc;
   if (pathname.startsWith("/stats")) return statsDoc;
   if (pathname.startsWith("/diagnose")) return diagnoseDoc;
+  if (pathname.startsWith("/learn")) return learnDoc;
   if (pathname === "/") return workspacesListDoc;
   return fallbackDoc;
 }
