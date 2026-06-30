@@ -163,9 +163,6 @@ export default function LearnPage() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-base-content/40 mt-3">
-          Cloud pricing (honcho.dev): $2/million tokens ingested, context() free and unlimited, .chat() from $0.001 to $0.50/query. New accounts get $100 in free credits.
-        </p>
       </div>
 
       <div className="divider" />

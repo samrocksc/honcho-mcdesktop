@@ -110,7 +110,7 @@ const workspaceDetailDoc: DocEntry = {
         <p className="text-base-content/70">Facts Honcho has written down. You can search them — just pick who is asking and who it's about first.</p>
       </div>
       <div>
-        <h4 className="font-semibold text-base-content mb-1">Ask tab</h4>
+        <h4 className="font-semibold text-base-content mb-1">Chat tab</h4>
         <p className="text-base-content/70"><strong className="text-base-content">Peer Chat</strong> — ask a person a question and get an answer based on what Honcho knows. <strong className="text-base-content">Workspace Search</strong> — search through all the messages in this workspace.</p>
       </div>
     </div>

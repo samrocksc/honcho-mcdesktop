@@ -5,7 +5,7 @@ import type { Peer, Session, Conclusion } from "@/lib/honcho/types";
 
 type EditState = { type: "hidden" } | { type: "editing"; value: string; saving: boolean; error: string }
 
-type Tab = "peers" | "sessions" | "conclusions" | "ask"
+type Tab = "peers" | "sessions" | "conclusions" | "chat"
 type AskMode = "peer-chat" | "workspace-search"
 
 type Props = {
@@ -21,7 +21,7 @@ export default function WorkspaceTabs({ workspaceId, peers, sessions, conclusion
   return (
     <div>
       <div role="tablist" className="tabs tabs-bordered mb-6">
-        {(["peers", "sessions", "conclusions", "ask"] as const).map((tab) => (
+        {(["peers", "sessions", "conclusions", "chat"] as const).map((tab) => (
           <button
             key={tab}
             role="tab"
@@ -29,7 +29,7 @@ export default function WorkspaceTabs({ workspaceId, peers, sessions, conclusion
             onClick={() => setActiveTab(tab)}
           >
             {tab}
-            {tab !== "ask" && (
+            {tab !== "chat" && (
               <span className="badge badge-sm badge-neutral ml-2">
                 {tab === "peers" ? peers.length : tab === "sessions" ? sessions.length : conclusions.length}
               </span>
@@ -41,7 +41,7 @@ export default function WorkspaceTabs({ workspaceId, peers, sessions, conclusion
       {activeTab === "peers" && <PeerList peers={peers} workspaceId={workspaceId} />}
       {activeTab === "sessions" && <SessionList sessions={sessions} workspaceId={workspaceId} />}
       {activeTab === "conclusions" && <ConclusionPanel conclusions={conclusions} workspaceId={workspaceId} peers={peers} />}
-      {activeTab === "ask" && <AskPanel workspaceId={workspaceId} peers={peers} />}
+      {activeTab === "chat" && <AskPanel workspaceId={workspaceId} peers={peers} />}
     </div>
   );
 }
