@@ -47,42 +47,40 @@ export default function PeerDetail({ peer, representation, context, sessions, wo
 
   return (
     <div className="space-y-4">
-      {peer && (
-        <div className="flex justify-end items-center gap-2 flex-wrap">
-          {confirmingDelete ? (
-            <>
-              <span className="text-sm text-base-content/70">Delete this peer?</span>
-              <button className="btn btn-xs btn-error" onClick={handleDeletePeer}>
-                Confirm delete
-              </button>
-              <button className="btn btn-xs btn-ghost" onClick={() => setConfirmingDelete(false)}>
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button className="btn btn-xs btn-ghost text-error" onClick={() => setConfirmingDelete(true)}>
-              Delete peer
+      <div className="flex justify-end items-center gap-2 flex-wrap">
+        {confirmingDelete ? (
+          <>
+            <span className="text-sm text-base-content/70">Delete this peer?</span>
+            <button className="btn btn-xs btn-error" onClick={handleDeletePeer}>
+              Confirm delete
             </button>
-          )}
-          <button
-            className="btn btn-sm btn-outline"
-            onClick={() => setShowMerge((v) => !v)}
-          >
-            Merge into peer →
+            <button className="btn btn-xs btn-ghost" onClick={() => setConfirmingDelete(false)}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button className="btn btn-xs btn-ghost text-error" onClick={() => setConfirmingDelete(true)}>
+            Delete peer
           </button>
-          <Link
-            href={`/workspaces/${workspaceId}/import?observed_id=${encodeURIComponent(peer.id)}`}
-            className="btn btn-sm btn-outline"
-          >
-            Re-import →
-          </Link>
-        </div>
-      )}
+        )}
+        <button
+          className="btn btn-sm btn-outline"
+          onClick={() => setShowMerge((v) => !v)}
+        >
+          Merge into peer →
+        </button>
+        <Link
+          href={`/workspaces/${workspaceId}/import?observed_id=${encodeURIComponent(peerId)}`}
+          className="btn btn-sm btn-outline"
+        >
+          Re-import →
+        </Link>
+      </div>
 
-      {showMerge && peer && (
+      {showMerge && (
         <MergePanel
           workspaceId={workspaceId}
-          sourcePeerId={peer.id}
+          sourcePeerId={peerId}
           onClose={() => setShowMerge(false)}
         />
       )}
