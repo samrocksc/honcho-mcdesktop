@@ -73,8 +73,16 @@ export const askPeer = (
     stream: options.stream ?? false,
   });
 
-export const chatPeer = (workspaceId: string, peerId: string, query: string): Promise<Response> =>
-  honchoPostStream(`/v3/workspaces/${workspaceId}/peers/${peerId}/chat`, { query });
+export const chatPeer = (
+  workspaceId: string,
+  peerId: string,
+  query: string,
+  reasoningLevel: ReasoningLevel = "low",
+): Promise<Response> =>
+  honchoPostStream(`/v3/workspaces/${workspaceId}/peers/${peerId}/chat`, {
+    query,
+    reasoning_level: reasoningLevel,
+  });
 
 export const listPeerSessions = (workspaceId: string, peerId: string, params: ListParams = {}): Promise<Page<Session>> =>
   honchoPost(`/v3/workspaces/${workspaceId}/peers/${peerId}/sessions/list`, {

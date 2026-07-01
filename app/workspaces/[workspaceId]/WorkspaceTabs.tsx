@@ -522,7 +522,13 @@ function AskPanel({ workspaceId, peers }: { readonly workspaceId: string; readon
         <div className="card bg-base-100 shadow">
           <div className="card-body">
             <p className="text-xs text-base-content/40 mb-1 font-mono">{selectedPeerId}</p>
-            <p className="text-sm whitespace-pre-wrap">{response}</p>
+            {/^\s*\[/.test(response) ? (
+              <p className="text-sm text-base-content/50 italic">
+                Honcho returned an incomplete answer. Try rephrasing or asking again.
+              </p>
+            ) : (
+              <p className="text-sm whitespace-pre-wrap">{response}</p>
+            )}
             {loading && <span className="loading loading-dots loading-sm mt-2" />}
           </div>
         </div>
