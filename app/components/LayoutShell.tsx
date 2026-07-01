@@ -1,25 +1,44 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import DocsPanel, { type DocPanelTab } from "@/components/DocsPanel";
+
+const STORAGE_KEY = "honcho-docs-panel-open";
 
 export default function LayoutShell({ children }: { readonly children: React.ReactNode }) {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DocPanelTab>("docs");
 
+  useEffect(() => {
+    setIsPanelOpen(localStorage.getItem(STORAGE_KEY) === "true");
+  }, []);
+
+  const togglePanel = () => {
+    setIsPanelOpen((prev) => {
+      localStorage.setItem(STORAGE_KEY, String(!prev));
+      return !prev;
+    });
+  };
+
+  const closePanel = () => {
+    localStorage.setItem(STORAGE_KEY, "false");
+    setIsPanelOpen(false);
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <nav className="navbar bg-base-100 shadow-sm px-4 flex-shrink-0">
-        <a href="/" className="btn btn-ghost text-xl font-bold">
+        <Link href="/" className="btn btn-ghost text-xl font-bold">
           Honcho Helpdesk
-        </a>
+        </Link>
         <div className="ml-auto flex gap-2 items-center">
-          <a href="/" className="btn btn-ghost btn-sm">Workspaces</a>
-          <a href="/learn" className="btn btn-ghost btn-sm">Learn</a>
-          <a href="/diagnose" className="btn btn-ghost btn-sm">Diagnose</a>
-          <a href="/stats" className="btn btn-ghost btn-sm">Stats</a>
+          <Link href="/" className="btn btn-ghost btn-sm">Workspaces</Link>
+          <Link href="/learn" className="btn btn-ghost btn-sm">Learn</Link>
+          <Link href="/diagnose" className="btn btn-ghost btn-sm">Diagnose</Link>
+          <Link href="/stats" className="btn btn-ghost btn-sm">Stats</Link>
           <button
             className={`btn btn-sm ${isPanelOpen ? "btn-neutral" : "btn-outline"}`}
-            onClick={() => setIsPanelOpen((prev) => !prev)}
+            onClick={togglePanel}
             aria-label={isPanelOpen ? "Close docs panel" : "Open docs panel"}
           >
             ? docs
@@ -37,7 +56,7 @@ export default function LayoutShell({ children }: { readonly children: React.Rea
           isOpen={isPanelOpen}
           activeTab={activeTab}
           onTabChangeAction={setActiveTab}
-          onCloseAction={() => setIsPanelOpen(false)}
+          onCloseAction={closePanel}
         />
       </div>
     </div>
