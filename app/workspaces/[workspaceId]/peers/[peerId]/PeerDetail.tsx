@@ -568,6 +568,32 @@ function ConclusionsTab({
   const [conclusions, setConclusions] = useState<readonly Conclusion[]>(initialConclusions);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
+  const [newContent, setNewContent] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  async function handleCreate() {
+    if (!newContent.trim() || creating) return;
+    setCreating(true);
+    setCreateError("");
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/conclusions/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conclusions: [{ content: newContent.trim(), observer_id: peerId, observed_id: peerId }],
+        }),
+      });
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
+      const created = await res.json() as readonly Conclusion[];
+      setConclusions((prev) => [...created, ...prev]);
+      setNewContent("");
+    } catch (e) {
+      setCreateError(String(e));
+    } finally {
+      setCreating(false);
+    }
+  }
 
   async function handleDelete(id: string) {
     try {
@@ -591,12 +617,35 @@ function ConclusionsTab({
     }
   }
 
-  if (conclusions.length === 0) {
-    return <p className="text-base-content/50 text-sm">No conclusions found.</p>;
-  }
-
   return (
     <div className="space-y-3">
+      {/* New conclusion form */}
+      <div className="card bg-base-100 shadow-sm border border-base-200">
+        <div className="card-body p-3 space-y-2">
+          <textarea
+            className="textarea textarea-bordered w-full text-sm min-h-16"
+            placeholder="Add a conclusion about this peer..."
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleCreate(); }}
+            disabled={creating}
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-base-content/40">⌘/Ctrl + Enter to save</span>
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={handleCreate}
+              disabled={creating || !newContent.trim()}
+            >
+              {creating ? <span className="loading loading-spinner loading-xs" /> : "Add"}
+            </button>
+          </div>
+          {createError && <p className="text-xs text-error">{createError}</p>}
+        </div>
+      </div>
+
+      {conclusions.length === 0 && <p className="text-base-content/50 text-sm">No conclusions yet.</p>}
+
       {conclusions.map((c) => (
         <div
           key={c.id}
