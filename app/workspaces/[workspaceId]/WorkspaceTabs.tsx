@@ -38,7 +38,7 @@ export default function WorkspaceTabs({ workspaceId, peers, sessions, conclusion
         ))}
       </div>
 
-      {activeTab === "peers" && <PeerList peers={peers} workspaceId={workspaceId} />}
+      {activeTab === "peers" && <PeerList peers={peers} workspaceId={workspaceId} conclusions={conclusions} />}
       {activeTab === "sessions" && <SessionList sessions={sessions} workspaceId={workspaceId} />}
       {activeTab === "conclusions" && <ConclusionPanel conclusions={conclusions} workspaceId={workspaceId} peers={peers} />}
       {activeTab === "chat" && <AskPanel workspaceId={workspaceId} peers={peers} />}
@@ -46,11 +46,15 @@ export default function WorkspaceTabs({ workspaceId, peers, sessions, conclusion
   );
 }
 
-function PeerList({ peers: initialPeers, workspaceId }: { readonly peers: readonly Peer[]; readonly workspaceId: string }) {
+function PeerList({ peers: initialPeers, workspaceId, conclusions }: { readonly peers: readonly Peer[]; readonly workspaceId: string; readonly conclusions: readonly Conclusion[] }) {
   const [peers, setPeers] = useState(initialPeers);
+  const [hideEmpty, setHideEmpty] = useState(false);
   const [newRow, setNewRow] = useState<EditState>({ type: "hidden" });
   const [confirming, setConfirming] = useState<string | null>(null);
   const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
+
+  const peersWithConclusions = new Set(conclusions.flatMap((c) => [c.observer_id, c.observed_id]));
+  const visiblePeers = hideEmpty ? peers.filter((p) => peersWithConclusions.has(p.id)) : peers;
 
   const handleCreate = async () => {
     if (newRow.type !== "editing" || !newRow.value.trim()) return;
@@ -94,7 +98,16 @@ function PeerList({ peers: initialPeers, workspaceId }: { readonly peers: readon
 
   return (
     <div className="space-y-2">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <label className="flex items-center gap-2 text-xs text-base-content/50 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="checkbox checkbox-xs"
+            checked={hideEmpty}
+            onChange={(e) => setHideEmpty(e.target.checked)}
+          />
+          Hide peers with no conclusions
+        </label>
         {newRow.type === "hidden" && (
           <button
             className="btn btn-xs btn-outline"
@@ -131,11 +144,11 @@ function PeerList({ peers: initialPeers, workspaceId }: { readonly peers: readon
         </div>
       )}
 
-      {peers.length === 0 && newRow.type === "hidden" && (
-        <p className="text-base-content/50 text-sm">No peers found.</p>
+      {visiblePeers.length === 0 && newRow.type === "hidden" && (
+        <p className="text-base-content/50 text-sm">{hideEmpty ? "No peers with conclusions." : "No peers found."}</p>
       )}
 
-      {peers.map((peer) => (
+      {visiblePeers.map((peer) => (
         <div key={peer.id} className={`card shadow-sm ${confirming === peer.id ? "bg-error/5" : "bg-base-100"}`}>
           <div className="card-body py-3 px-4">
             {confirming === peer.id ? (
