@@ -85,7 +85,7 @@ export const chatPeer = (
   });
 
 export const listPeerSessions = (workspaceId: string, peerId: string, params: ListParams = {}): Promise<Page<Session>> =>
-  honchoPost(`/v3/workspaces/${workspaceId}/peers/${peerId}/sessions/list`, {
+  honchoPost(`/v3/workspaces/${workspaceId}/peers/${peerId}/sessions`, {
     page: params.page ?? 1,
     size: params.size ?? 50,
     reverse: false,

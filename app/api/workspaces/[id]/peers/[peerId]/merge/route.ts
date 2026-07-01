@@ -89,7 +89,7 @@ export async function POST(
 
     while (true) {
       const res = await honchoFetch(
-        `/v3/workspaces/${workspaceId}/peers/${sourceId}/sessions/list`,
+        `/v3/workspaces/${workspaceId}/peers/${sourceId}/sessions`,
         { method: "POST", body: JSON.stringify({ page, size: 50, reverse: false }) }
       );
       const data = await res.json() as Page<{ id: string }>;
