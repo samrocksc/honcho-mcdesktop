@@ -48,7 +48,7 @@ export default function WorkspaceTabs({ workspaceId, peers, sessions, conclusion
 
 function PeerList({ peers: initialPeers, workspaceId, conclusions }: { readonly peers: readonly Peer[]; readonly workspaceId: string; readonly conclusions: readonly Conclusion[] }) {
   const [peers, setPeers] = useState(initialPeers);
-  const [hideEmpty, setHideEmpty] = useState(false);
+  const [hideEmpty, setHideEmpty] = useState(true);
   const [newRow, setNewRow] = useState<EditState>({ type: "hidden" });
   const [confirming, setConfirming] = useState<string | null>(null);
   const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
