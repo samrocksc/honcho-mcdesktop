@@ -23,6 +23,7 @@ export default function PeerDetail({ peer, representation, context, sessions, wo
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [diagnosisConclusion, setDiagnosisConclusion] = useState<Conclusion | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [showMerge, setShowMerge] = useState(false);
   const router = useRouter();
 
   const handleDeletePeer = async () => {
@@ -63,6 +64,12 @@ export default function PeerDetail({ peer, representation, context, sessions, wo
               Delete peer
             </button>
           )}
+          <button
+            className="btn btn-sm btn-outline"
+            onClick={() => setShowMerge((v) => !v)}
+          >
+            Merge into peer →
+          </button>
           <Link
             href={`/workspaces/${workspaceId}/import?observed_id=${encodeURIComponent(peer.id)}`}
             className="btn btn-sm btn-outline"
@@ -70,6 +77,14 @@ export default function PeerDetail({ peer, representation, context, sessions, wo
             Re-import →
           </Link>
         </div>
+      )}
+
+      {showMerge && peer && (
+        <MergePanel
+          workspaceId={workspaceId}
+          sourcePeerId={peer.id}
+          onClose={() => setShowMerge(false)}
+        />
       )}
 
       <div role="tablist" className="tabs tabs-bordered mb-2">
@@ -656,6 +671,128 @@ function ConclusionsTab({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── Merge panel ───────────────────────────────────────────────────────────────
+
+type MergeResult = { conclusionsMerged: number; sessionsMerged: number }
+type MergeState = "idle" | "loading-peers" | "ready" | "merging" | "done" | "error"
+
+function MergePanel({ workspaceId, sourcePeerId, onClose }: {
+  readonly workspaceId: string
+  readonly sourcePeerId: string
+  readonly onClose: () => void
+}) {
+  const [state, setState] = useState<MergeState>("loading-peers");
+  const [peers, setPeers] = useState<readonly Peer[]>([]);
+  const [targetId, setTargetId] = useState("");
+  const [result, setResult] = useState<MergeResult | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch(`/api/workspaces/${workspaceId}/peers`)
+      .then((r) => r.json())
+      .then((data: { items?: Peer[] }) => {
+        const others = (data.items ?? []).filter((p) => p.id !== sourcePeerId);
+        setPeers(others);
+        if (others[0]) setTargetId(others[0].id);
+        setState("ready");
+      })
+      .catch((e: unknown) => { setError(String(e)); setState("error"); });
+  }, [workspaceId, sourcePeerId]);
+
+  const handleMerge = async () => {
+    if (!targetId) return;
+    setState("merging");
+    setError("");
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/peers/${sourcePeerId}/merge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetPeerId: targetId }),
+      });
+      const data = await res.json() as MergeResult & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setResult(data);
+      setState("done");
+    } catch (e) {
+      setError(String(e));
+      setState("error");
+    }
+  };
+
+  return (
+    <div className="card bg-base-100 shadow border border-base-200">
+      <div className="card-body p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm">Merge peer</h3>
+          <button className="btn btn-xs btn-ghost" onClick={onClose}>✕</button>
+        </div>
+
+        {state === "loading-peers" && (
+          <p className="text-sm text-base-content/50">Loading peers…</p>
+        )}
+
+        {(state === "ready" || state === "merging") && (
+          <>
+            <p className="text-sm text-base-content/70">
+              Copies all conclusions from <strong className="font-mono">{sourcePeerId}</strong> to the target peer and reassigns all sessions. The source peer cannot be deleted afterward.
+            </p>
+            <label className="flex items-center gap-3 text-sm">
+              <span className="font-medium shrink-0">Merge into:</span>
+              <select
+                className="select select-bordered select-sm flex-1"
+                value={targetId}
+                onChange={(e) => setTargetId(e.target.value)}
+                disabled={state === "merging"}
+              >
+                {peers.length === 0 && <option value="">No other peers</option>}
+                {peers.map((p) => <option key={p.id} value={p.id}>{p.id}</option>)}
+              </select>
+            </label>
+            <div className="flex justify-end gap-2">
+              <button className="btn btn-sm btn-ghost" onClick={onClose} disabled={state === "merging"}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={handleMerge}
+                disabled={state === "merging" || !targetId || peers.length === 0}
+              >
+                {state === "merging"
+                  ? <><span className="loading loading-spinner loading-xs" /> Merging…</>
+                  : "Merge"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {state === "done" && result && (
+          <div className="space-y-2">
+            <div className="alert alert-success text-sm">
+              <span>
+                Merged into <strong className="font-mono">{targetId}</strong>:
+                {" "}{result.conclusionsMerged} conclusion{result.conclusionsMerged !== 1 ? "s" : ""},
+                {" "}{result.sessionsMerged} session{result.sessionsMerged !== 1 ? "s" : ""}.
+              </span>
+            </div>
+            <div className="flex justify-end">
+              <button className="btn btn-sm btn-ghost" onClick={onClose}>Close</button>
+            </div>
+          </div>
+        )}
+
+        {state === "error" && (
+          <div className="space-y-2">
+            <div className="alert alert-error text-sm"><span>{error}</span></div>
+            <div className="flex justify-end">
+              <button className="btn btn-sm btn-ghost" onClick={() => setState("ready")}>Try again</button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

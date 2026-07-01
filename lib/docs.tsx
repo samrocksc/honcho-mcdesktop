@@ -75,6 +75,10 @@ const peerDetailDoc: DocEntry = {
         <h4 className="font-semibold text-base-content mb-1">Sessions</h4>
         <p className="text-base-content/70">Past conversations this person was part of. Click one to read the full chat.</p>
       </div>
+      <div>
+        <h4 className="font-semibold text-base-content mb-1">Merge into peer</h4>
+        <p className="text-base-content/70">Copies all conclusions from this peer to another, then reassigns all sessions. Useful for consolidating duplicates (e.g. &ldquo;Sam&rdquo; and &ldquo;sam&rdquo;). The source peer stays in Honcho but is left empty — the API does not support deletion.</p>
+      </div>
     </div>
   ),
 };
