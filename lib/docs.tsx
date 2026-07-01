@@ -115,7 +115,7 @@ const workspaceDetailDoc: DocEntry = {
       </div>
       <div>
         <h4 className="font-semibold text-base-content mb-1">Chat tab</h4>
-        <p className="text-base-content/70"><strong className="text-base-content">Peer Chat</strong> — ask a person a question and get an answer based on what Honcho knows. <strong className="text-base-content">Workspace Search</strong> — search through all the messages in this workspace.</p>
+        <p className="text-base-content/70"><strong className="text-base-content">Peer Chat</strong> — ask a person a question and get an answer based on what Honcho knows. Only peers with stored conclusions appear in the dropdown — peers with no knowledge won&apos;t return anything useful. <strong className="text-base-content">Workspace Search</strong> — search through all the messages in this workspace.</p>
       </div>
     </div>
   ),

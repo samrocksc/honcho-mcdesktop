@@ -41,7 +41,7 @@ export default function WorkspaceTabs({ workspaceId, peers, sessions, conclusion
       {activeTab === "peers" && <PeerList peers={peers} workspaceId={workspaceId} conclusions={conclusions} />}
       {activeTab === "sessions" && <SessionList sessions={sessions} workspaceId={workspaceId} />}
       {activeTab === "conclusions" && <ConclusionPanel conclusions={conclusions} workspaceId={workspaceId} peers={peers} />}
-      {activeTab === "chat" && <AskPanel workspaceId={workspaceId} peers={peers} />}
+      {activeTab === "chat" && <AskPanel workspaceId={workspaceId} peers={peers} conclusions={conclusions} />}
     </div>
   );
 }
@@ -455,9 +455,12 @@ function ConclusionPanel({ conclusions: initialConclusions, workspaceId, peers }
   );
 }
 
-function AskPanel({ workspaceId, peers }: { readonly workspaceId: string; readonly peers: readonly Peer[] }) {
+function AskPanel({ workspaceId, peers, conclusions }: { readonly workspaceId: string; readonly peers: readonly Peer[]; readonly conclusions: readonly Conclusion[] }) {
+  const peersWithKnowledge = new Set(conclusions.flatMap((c) => [c.observer_id, c.observed_id]));
+  const chatPeers = peers.filter((p) => peersWithKnowledge.has(p.id));
+
   const [mode, setMode] = useState<AskMode>("peer-chat");
-  const [selectedPeerId, setSelectedPeerId] = useState(peers[0]?.id ?? "");
+  const [selectedPeerId, setSelectedPeerId] = useState(chatPeers[0]?.id ?? "");
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState("");
   const [searchResults, setSearchResults] = useState<readonly { id: string; content: string; peer_id?: string }[]>([]);
@@ -511,8 +514,11 @@ function AskPanel({ workspaceId, peers }: { readonly workspaceId: string; readon
     <div className="space-y-4">
       <ModeToggle mode={mode} onModeChange={setMode} />
 
-      {mode === "peer-chat" && peers.length > 0 && (
-        <PeerSelector peers={peers} value={selectedPeerId} onChange={setSelectedPeerId} />
+      {mode === "peer-chat" && chatPeers.length > 0 && (
+        <PeerSelector peers={chatPeers} value={selectedPeerId} onChange={setSelectedPeerId} />
+      )}
+      {mode === "peer-chat" && chatPeers.length === 0 && (
+        <p className="text-sm text-base-content/50">No peers with stored knowledge in this workspace.</p>
       )}
 
       <div className="join w-full">
